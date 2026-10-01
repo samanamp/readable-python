@@ -7,38 +7,22 @@
 <meta name="description" content="Fail loudly at boundaries; decide recovery in one place.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400..700&family=Atkinson+Hyperlegible+Next:ital,wght@0,400..800;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=Instrument+Sans:wdth,wght@75..100,400..700&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap">
 <link rel="stylesheet" href="style.css">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%275%27 fill=%27%23ffe55c%27/%3E%3Ctext x=%2716%27 y=%2721.5%27 font-family=%27monospace%27 font-size=%2714%27 font-weight=%27700%27 text-anchor=%27middle%27 fill=%27%2315181d%27%3ERP%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 fill=%27%23fcfcfa%27/%3E%3Ctext x=%2716%27 y=%2722%27 font-family=%27Georgia,serif%27 font-size=%2717%27 font-weight=%27700%27 text-anchor=%27middle%27 fill=%27%23161616%27%3ERP%3C/text%3E%3Cpath d=%27M4 27 L28 5%27 stroke=%27%23cf2e1d%27 stroke-width=%272.5%27/%3E%3C/svg%3E">
 <script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
-<div class="frame">
-<nav class="rail" aria-label="Contents">
-  <div class="book"><a href="index.html">Readable Python</a><button class="theme" type="button" onclick="toggleTheme()">theme</button></div>
-  <details><summary>Contents</summary>
-    <ol>
-      <li><a href="index.html"><span class="n">RP</span><span>Cheat sheet</span></a></li>
-      <li><a href="principles.html"><span class="n">01</span><span>Principles</span></a></li>
-      <li><a href="shape.html"><span class="n">02</span><span>The shape of a system</span></a></li>
-      <li><a href="state.html"><span class="n">03</span><span>State</span></a></li>
-      <li><a href="functions.html"><span class="n">04</span><span>Functions</span></a></li>
-      <li><a href="naming.html"><span class="n">05</span><span>Naming</span></a></li>
-      <li><a href="comments.html"><span class="n">06</span><span>Comments and docstrings</span></a></li>
-      <li><a href="errors.html" aria-current="page"><span class="n">07</span><span>Errors</span></a></li>
-      <li><a href="concurrency.html"><span class="n">08</span><span>Concurrency and the GPU</span></a></li>
-      <li><a href="abstractions.html"><span class="n">09</span><span>Abstractions</span></a></li>
-      <li><a href="tests.html"><span class="n">10</span><span>Tests</span></a></li>
-      <li><a href="ai-code.html"><span class="n">11</span><span>Reviewing AI-written code</span></a></li>
-    </ol>
-  </details>
-</nav>
-
-<main>
-<p class="eyebrow">Chapter 07 of 11</p>
-<h1>Errors</h1>
-<p class="lede">Fail loudly at boundaries; decide recovery in one place.</p>
-<div class="rule"><span class="code">RP10</span><div><p class="stmt">Fail loudly at boundaries. Decide what's recoverable in one place.</p><p class="why">Errors hidden deep in the code turn into wrong results far away from their cause. Recovery logic scattered everywhere means nobody knows what the system does when something breaks.</p></div></div>
+<header class="running-head">
+  <a href="index.html">Readable Python</a>
+  <span class="where"><span>Chapter 7 · Errors</span><a href="index.html#contents">Contents</a><button class="theme" type="button" onclick="toggleTheme()">Light / dark</button></span>
+</header>
+<main class="page">
+<header class="opener">
+  <span class="numeral" aria-hidden="true">7</span>
+  <div class="titles"><h1>Errors</h1><p class="lede">Fail loudly at boundaries; decide recovery in one place.</p></div>
+</header>
+<div class="rule"><span class="rp">RP10</span><p class="stmt">Fail loudly at boundaries. Decide what's recoverable in one place.</p><p class="why">Errors hidden deep in the code turn into wrong results far away from their cause. Recovery logic scattered everywhere means nobody knows what the system does when something breaks.</p></div>
 
 <h2>The blanket catch</h2>
 <div class="pair">
@@ -91,15 +75,13 @@ class Input:
 <h3>Never silence with <code>pass</code></h3>
 <p><code>except SomeError: pass</code> needs a comment saying why ignoring it is correct. If you can't write that sentence, don't ignore it.</p>
 
-<nav class="pager" aria-label="Chapters"><a class="prev" href="comments.html"><span>Previous · 06</span>Comments and docstrings</a><a class="next" href="concurrency.html"><span>Next · 08</span>Concurrency and the GPU</a></nav>
-<footer class="site"><p>Formatting is left to <code>ruff format</code>. This booklet is about structure. Source on <a href="https://github.com/samanamp/readable-python">GitHub</a>.</p></footer>
+<nav class="pager" aria-label="Chapters"><a class="prev" href="comments.html"><span>Previous · Chapter 6</span>Comments and docstrings</a><a class="next" href="concurrency.html"><span>Next · Chapter 8</span>Concurrency and the GPU</a></nav>
+<footer class="site">Formatting is left to <code>ruff format</code>; this booklet is about structure. Source on <a href="https://github.com/samanamp/readable-python">GitHub</a>.</footer>
 </main>
-</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
 <script>
 if (window.hljs) hljs.highlightAll();
-if (matchMedia("(min-width: 64rem)").matches) document.querySelector(".rail details").open = true;
 function toggleTheme() {
   var d = document.documentElement;
   var dark = d.dataset.theme ? d.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;

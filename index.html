@@ -7,92 +7,75 @@
 <meta name="description" content="A short style booklet for ML systems code, in the spirit of vLLM and SGLang.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400..700&family=Atkinson+Hyperlegible+Next:ital,wght@0,400..800;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=Instrument+Sans:wdth,wght@75..100,400..700&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap">
 <link rel="stylesheet" href="style.css">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%275%27 fill=%27%23ffe55c%27/%3E%3Ctext x=%2716%27 y=%2721.5%27 font-family=%27monospace%27 font-size=%2714%27 font-weight=%27700%27 text-anchor=%27middle%27 fill=%27%2315181d%27%3ERP%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 fill=%27%23fcfcfa%27/%3E%3Ctext x=%2716%27 y=%2722%27 font-family=%27Georgia,serif%27 font-size=%2717%27 font-weight=%27700%27 text-anchor=%27middle%27 fill=%27%23161616%27%3ERP%3C/text%3E%3Cpath d=%27M4 27 L28 5%27 stroke=%27%23cf2e1d%27 stroke-width=%272.5%27/%3E%3C/svg%3E">
 <script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
-<div class="frame">
-<nav class="rail" aria-label="Contents">
-  <div class="book"><a href="index.html">Readable Python</a><button class="theme" type="button" onclick="toggleTheme()">theme</button></div>
-  <details><summary>Contents</summary>
-    <ol>
-      <li><a href="index.html" aria-current="page"><span class="n">RP</span><span>Cheat sheet</span></a></li>
-      <li><a href="principles.html"><span class="n">01</span><span>Principles</span></a></li>
-      <li><a href="shape.html"><span class="n">02</span><span>The shape of a system</span></a></li>
-      <li><a href="state.html"><span class="n">03</span><span>State</span></a></li>
-      <li><a href="functions.html"><span class="n">04</span><span>Functions</span></a></li>
-      <li><a href="naming.html"><span class="n">05</span><span>Naming</span></a></li>
-      <li><a href="comments.html"><span class="n">06</span><span>Comments and docstrings</span></a></li>
-      <li><a href="errors.html"><span class="n">07</span><span>Errors</span></a></li>
-      <li><a href="concurrency.html"><span class="n">08</span><span>Concurrency and the GPU</span></a></li>
-      <li><a href="abstractions.html"><span class="n">09</span><span>Abstractions</span></a></li>
-      <li><a href="tests.html"><span class="n">10</span><span>Tests</span></a></li>
-      <li><a href="ai-code.html"><span class="n">11</span><span>Reviewing AI-written code</span></a></li>
-    </ol>
-  </details>
-</nav>
+<header class="running-head">
+  <a href="index.html">Readable Python</a>
+  <span class="where"><span>A style booklet</span><a href="index.html#contents">Contents</a><button class="theme" type="button" onclick="toggleTheme()">Light / dark</button></span>
+</header>
+<main class="page">
+<p class="kicker">A style booklet for ML systems code · 15 rules · 11 chapters</p>
+<h1 class="cover-title">Readable Python<span class="mark">.</span></h1>
+<p class="lede">Code that reads like the best serving engines: open the main loop, and understand the system from one screen.</p>
 
-<main>
-<p class="eyebrow">A style booklet · 15 rules · 11 chapters</p>
-<h1>Readable Python</h1>
-<p class="lede">Python for ML systems that reads like vLLM and SGLang: open the main loop, understand the system from one screen.</p>
+<p>This is not a formatting guide. Let <code>ruff format</code> and a lint config settle spacing, quotes and import order, and never discuss them in review. Everything here is about <em>structure</em>: where state lives, how a loop is shaped, what a comment is for. Those are the things that make code easy or hard to follow, and no tool can fix them.</p>
 
-<p>This is not a formatting guide. Let <code>ruff format</code> and a lint config settle spacing, quotes and import order, and never discuss them in review. Everything here is about <em>structure</em>: where state lives, how a loop is shaped, what a comment is for. Those are the things that make code easy or hard to follow, and tools can't fix them.</p>
+<p>Each chapter states its rules, then shows a draft struck through in red and the revision beside it. The examples are small on purpose; the patterns scale.</p>
 
-<p>Each chapter gives a few rules and then a before/after example. The examples are small on purpose; the patterns scale.</p>
-
-<h2>The cheat sheet</h2>
+<h2>The fifteen rules</h2>
 <ol class="cheat">
-  <li><p><b>Optimize for the reader.</b> Code is read far more often than it is written. When writing it is easy and reading it is hard, rewrite.</p><a href="principles.html">ch. 01</a></li>
-  <li><p><b>The top-level loop is a list of named steps.</b> A reader should see the whole system in one screen.</p><a href="shape.html">ch. 02</a></li>
-  <li><p><b>One class, one job. Data crosses boundaries as dataclasses.</b></p><a href="shape.html">ch. 02</a></li>
-  <li><p><b>Every piece of state has exactly one owner.</b> No parallel dicts kept in sync by hand.</p><a href="state.html">ch. 03</a></li>
-  <li><p><b>Use an enum for status, not a pile of booleans.</b></p><a href="state.html">ch. 03</a></li>
-  <li><p><b>Functions return results. They don't mutate their arguments.</b></p><a href="functions.html">ch. 04</a></li>
-  <li><p><b>One level of abstraction per function, and at most four parameters.</b></p><a href="functions.html">ch. 04</a></li>
-  <li><p><b>Name things with domain words, and use the same word for the same thing everywhere.</b></p><a href="naming.html">ch. 05</a></li>
-  <li><p><b>Comments say why. The code says what. Git says when.</b></p><a href="comments.html">ch. 06</a></li>
-  <li><p><b>Fail loudly at boundaries. Decide what's recoverable in one place.</b> No blanket <code>except Exception</code>.</p><a href="errors.html">ch. 07</a></li>
-  <li><p><b>Each piece of mutable state belongs to one thread. Hand off with queues.</b></p><a href="concurrency.html">ch. 08</a></li>
-  <li><p><b>Only overlap work that uses different hardware, and prove it with a profile.</b></p><a href="concurrency.html">ch. 08</a></li>
-  <li><p><b>Add an abstraction at the second implementation, not the first.</b></p><a href="abstractions.html">ch. 09</a></li>
-  <li><p><b>Tests describe behaviour, one idea per test.</b></p><a href="tests.html">ch. 10</a></li>
-  <li><p><b>Review AI-written code for what to delete.</b></p><a href="ai-code.html">ch. 11</a></li>
+  <li><p><b>Optimize for the reader.</b> Code is read far more often than it is written. When writing it is easy and reading it is hard, rewrite.</p><a href="principles.html">Chapter 1</a></li>
+  <li><p><b>The top-level loop is a list of named steps.</b> A reader should see the whole system in one screen.</p><a href="shape.html">Chapter 2</a></li>
+  <li><p><b>One class, one job. Data crosses boundaries as dataclasses.</b></p><a href="shape.html">Chapter 2</a></li>
+  <li><p><b>Every piece of state has exactly one owner.</b> No parallel dicts kept in sync by hand.</p><a href="state.html">Chapter 3</a></li>
+  <li><p><b>Use an enum for status, not a pile of booleans.</b></p><a href="state.html">Chapter 3</a></li>
+  <li><p><b>Functions return results. They don't mutate their arguments.</b></p><a href="functions.html">Chapter 4</a></li>
+  <li><p><b>One level of abstraction per function, and at most four parameters.</b></p><a href="functions.html">Chapter 4</a></li>
+  <li><p><b>Name things with domain words, and use the same word for the same thing everywhere.</b></p><a href="naming.html">Chapter 5</a></li>
+  <li><p><b>Comments say why. The code says what. Git says when.</b></p><a href="comments.html">Chapter 6</a></li>
+  <li><p><b>Fail loudly at boundaries. Decide what's recoverable in one place.</b> No blanket <code>except Exception</code>.</p><a href="errors.html">Chapter 7</a></li>
+  <li><p><b>Each piece of mutable state belongs to one thread. Hand off with queues.</b></p><a href="concurrency.html">Chapter 8</a></li>
+  <li><p><b>Only overlap work that uses different hardware, and prove it with a profile.</b></p><a href="concurrency.html">Chapter 8</a></li>
+  <li><p><b>Add an abstraction at the second implementation, not the first.</b></p><a href="abstractions.html">Chapter 9</a></li>
+  <li><p><b>Tests describe behaviour, one idea per test.</b></p><a href="tests.html">Chapter 10</a></li>
+  <li><p><b>Review AI-written code for what to delete.</b></p><a href="ai-code.html">Chapter 11</a></li>
 </ol>
 
-<h2>Contents</h2>
+<h2 id="contents">Contents</h2>
 <ol class="toc">
-  <li><a href="principles.html">Principles</a> <span class="sub">— what we optimize for</span></li>
-  <li><a href="shape.html">The shape of a system</a> <span class="sub">— loops, classes, boundaries</span></li>
-  <li><a href="state.html">State</a> <span class="sub">— owners, objects, enums</span></li>
-  <li><a href="functions.html">Functions</a> <span class="sub">— size, parameters, side effects</span></li>
-  <li><a href="naming.html">Naming</a> <span class="sub">— a small, consistent vocabulary</span></li>
-  <li><a href="comments.html">Comments and docstrings</a> <span class="sub">— why, not what or when</span></li>
-  <li><a href="errors.html">Errors</a> <span class="sub">— boundaries and recovery</span></li>
-  <li><a href="concurrency.html">Concurrency and the GPU</a> <span class="sub">— threads, queues, streams</span></li>
-  <li><a href="abstractions.html">Abstractions</a> <span class="sub">— when to generalize</span></li>
-  <li><a href="tests.html">Tests</a> <span class="sub">— behaviour as specification</span></li>
-  <li><a href="ai-code.html">Reviewing AI-written code</a> <span class="sub">— what to cut</span></li>
+  <li><a href="principles.html">Principles</a><span class="leader"></span><span class="rules">RP01</span></li>
+  <li><a href="shape.html">The shape of a system</a><span class="leader"></span><span class="rules">RP02–03</span></li>
+  <li><a href="state.html">State</a><span class="leader"></span><span class="rules">RP04–05</span></li>
+  <li><a href="functions.html">Functions</a><span class="leader"></span><span class="rules">RP06–07</span></li>
+  <li><a href="naming.html">Naming</a><span class="leader"></span><span class="rules">RP08</span></li>
+  <li><a href="comments.html">Comments and docstrings</a><span class="leader"></span><span class="rules">RP09</span></li>
+  <li><a href="errors.html">Errors</a><span class="leader"></span><span class="rules">RP10</span></li>
+  <li><a href="concurrency.html">Concurrency and the GPU</a><span class="leader"></span><span class="rules">RP11–12</span></li>
+  <li><a href="abstractions.html">Abstractions</a><span class="leader"></span><span class="rules">RP13</span></li>
+  <li><a href="tests.html">Tests</a><span class="leader"></span><span class="rules">RP14</span></li>
+  <li><a href="ai-code.html">Reviewing AI-written code</a><span class="leader"></span><span class="rules">RP15</span></li>
 </ol>
 
 <h2>How to use it</h2>
 <ul>
-  <li><b>Reviewing:</b> quote rules by number, e.g. "RP04: who owns this dict?". It keeps reviews short and impersonal.</li>
-  <li><b>With coding agents:</b> link the cheat sheet from <code>AGENTS.md</code> or <code>CLAUDE.md</code>. Agents follow concrete rules well, and chapter 11 lists what they tend to get wrong.</li>
-  <li><b>Breaking a rule:</b> fine, when you can say why in one sentence. Put that sentence in a comment (RP09).</li>
+  <li><b>In review,</b> cite rules by code, like a linter: "RP04: who owns this dict?" It keeps reviews short and impersonal.</li>
+  <li><b>With coding agents,</b> link the rules from <code>AGENTS.md</code> or <code>CLAUDE.md</code>. Agents follow concrete rules well, and chapter 11 lists what they tend to get wrong.</li>
+  <li><b>Breaking a rule</b> is fine when you can say why in one sentence. Put that sentence in a comment (RP09).</li>
 </ul>
 
-<nav class="pager" aria-label="Chapters"><a class="next" href="principles.html"><span>Next · 01</span>Principles</a></nav>
-<footer class="site"><p>Formatting is left to <code>ruff format</code>. This booklet is about structure. Source on <a href="https://github.com/samanamp/readable-python">GitHub</a>.</p></footer>
+<p class="colophon">Set in Newsreader, Instrument Sans and IBM Plex Mono. The red is the editor's pencil: it marks rules, chapter numbers and struck drafts, and nothing else.</p>
+
+<nav class="pager" aria-label="Chapters"><a class="next" href="principles.html"><span>Next · Chapter 1</span>Principles</a></nav>
+<footer class="site">Formatting is left to <code>ruff format</code>; this booklet is about structure. Source on <a href="https://github.com/samanamp/readable-python">GitHub</a>.</footer>
 </main>
-</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
 <script>
 if (window.hljs) hljs.highlightAll();
-if (matchMedia("(min-width: 64rem)").matches) document.querySelector(".rail details").open = true;
 function toggleTheme() {
   var d = document.documentElement;
   var dark = d.dataset.theme ? d.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;

@@ -17,44 +17,27 @@ CHAPTERS = [
   ["tests",         10,  "Tests",                        "Tests are the specification people actually read."],
   ["ai-code",       11,  "Reviewing AI-written code",    "What to cut before it merges."],
 ]
-FONTS = "https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400..700" \
-        "&family=Atkinson+Hyperlegible+Next:ital,wght@0,400..800;1,400&display=swap"
+FONTS = "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700" \
+        "&family=Instrument+Sans:wdth,wght@75..100,400..700&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap"
+ICON = "data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 fill=%27%23fcfcfa%27/%3E" \
+       "%3Ctext x=%2716%27 y=%2722%27 font-family=%27Georgia,serif%27 font-size=%2717%27 font-weight=%27700%27 text-anchor=%27middle%27 fill=%27%23161616%27%3ERP%3C/text%3E" \
+       "%3Cpath d=%27M4 27 L28 5%27 stroke=%27%23cf2e1d%27 stroke-width=%272.5%27/%3E%3C/svg%3E"
 
 def rp(n); format("RP%02d", n.to_i); end
 
-# Source fragments say "Rule 4." in rule boxes and "rule 4" in prose; render both as lint codes.
+# Source fragments say "Rule 4." in rule boxes and "rule 4" in prose; render both as RP codes.
 def transform(body)
   body = body.gsub(%r{<div class="rule">Rule (\d+)\. (.*?)\s*<span class="why">(.*?)</span></div>}m) do
-    %(<div class="rule"><span class="code">#{rp($1)}</span><div><p class="stmt">#{$2.strip}</p><p class="why">#{$3.strip}</p></div></div>)
+    %(<div class="rule"><span class="rp">#{rp($1)}</span><p class="stmt">#{$2.strip}</p><p class="why">#{$3.strip}</p></div>)
   end
   body = body.gsub(%r{<div class="rule">(?!<span)(.*?)</div>}m) { %(<div class="rule plain"><p class="stmt">#{$1.strip}</p></div>) }
   body = body.gsub(/\b[Rr]ule (\d+)\b/) { rp($1) }
   body.gsub("<table>", %(<div class="table-wrap"><table>)).gsub("</table>", "</table></div>")
 end
 
-def rail(current)
-  items = CHAPTERS.drop(1).map do |slug, num, title|
-    cur = slug == current ? %( aria-current="page") : ""
-    %(<li><a href="#{slug}.html"#{cur}><span class="n">#{format('%02d', num)}</span><span>#{title}</span></a></li>)
-  end
-  open = ""
-  <<~HTML
-    <nav class="rail" aria-label="Contents">
-      <div class="book"><a href="index.html">#{TITLE}</a><button class="theme" type="button" onclick="toggleTheme()">theme</button></div>
-      <details#{open}><summary>Contents</summary>
-        <ol>
-          <li><a href="index.html"#{current == "index" ? ' aria-current="page"' : ""}><span class="n">RP</span><span>Cheat sheet</span></a></li>
-          #{items.join("\n      ")}
-        </ol>
-      </details>
-    </nav>
-  HTML
-end
-
 def pager_link(ch, label, cls)
   slug, num, title = ch
-  name = num ? title : "Cheat sheet"
-  %(<a class="#{cls}" href="#{slug}.html"><span>#{label}#{num ? " · #{format('%02d', num)}" : ""}</span>#{name}</a>)
+  %(<a class="#{cls}" href="#{slug}.html"><span>#{label}#{num ? " · Chapter #{num}" : ""}</span>#{num ? title : "Cover &amp; rules"}</a>)
 end
 
 CHAPTERS.each_with_index do |(slug, num, title, lede), i|
@@ -65,7 +48,13 @@ CHAPTERS.each_with_index do |(slug, num, title, lede), i|
   pager << pager_link(prev_ch, "Previous", "prev") if prev_ch
   pager << pager_link(next_ch, "Next", "next") if next_ch
   pager << "</nav>"
-  heading = num ? %(<p class="eyebrow">Chapter #{format('%02d', num)} of #{CHAPTERS.size - 1}</p>\n<h1>#{title}</h1>\n<p class="lede">#{lede}</p>\n) : ""
+  opener = num ? <<~HTML : ""
+    <header class="opener">
+      <span class="numeral" aria-hidden="true">#{num}</span>
+      <div class="titles"><h1>#{title}</h1><p class="lede">#{lede}</p></div>
+    </header>
+  HTML
+  where = num ? %(<span>Chapter #{num} · #{title}</span>) : %(<span>A style booklet</span>)
   page_title = num ? "#{title} · #{TITLE}" : TITLE
   html = <<~HTML
     <!doctype html>
@@ -79,23 +68,23 @@ CHAPTERS.each_with_index do |(slug, num, title, lede), i|
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="#{FONTS}">
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%275%27 fill=%27%23ffe55c%27/%3E%3Ctext x=%2716%27 y=%2721.5%27 font-family=%27monospace%27 font-size=%2714%27 font-weight=%27700%27 text-anchor=%27middle%27 fill=%27%2315181d%27%3ERP%3C/text%3E%3C/svg%3E">
+    <link rel="icon" href="#{ICON}">
     <script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
     </head>
     <body>
-    <div class="frame">
-    #{rail(slug)}
-    <main>
-    #{heading}#{body}
+    <header class="running-head">
+      <a href="index.html">#{TITLE}</a>
+      <span class="where">#{where}<a href="index.html#contents">Contents</a><button class="theme" type="button" onclick="toggleTheme()">Light / dark</button></span>
+    </header>
+    <main class="page">
+    #{opener}#{body}
     #{pager}
-    <footer class="site"><p>Formatting is left to <code>ruff format</code>. This booklet is about structure. Source on <a href="https://github.com/samanamp/readable-python">GitHub</a>.</p></footer>
+    <footer class="site">Formatting is left to <code>ruff format</code>; this booklet is about structure. Source on <a href="https://github.com/samanamp/readable-python">GitHub</a>.</footer>
     </main>
-    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
     <script>
     if (window.hljs) hljs.highlightAll();
-    if (matchMedia("(min-width: 64rem)").matches) document.querySelector(".rail details").open = true;
     function toggleTheme() {
       var d = document.documentElement;
       var dark = d.dataset.theme ? d.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
