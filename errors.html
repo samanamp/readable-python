@@ -38,7 +38,7 @@
         continue
     outbox.put_all(chunks)</code></pre></figure>
 </div>
-<p>The "before" loop survives everything, including a CUDA out-of-memory error, a corrupted model or a bug in <code>outbox.put</code>. It logs and carries on producing nothing, forever. The "after" loop handles the one failure it understands, a single session going bad, and lets everything else crash the process. Your supervisor (Kubernetes, systemd) restarts it in a known-good state, and the crash shows up in monitoring.</p>
+<p>The "before" loop survives everything, including a CUDA out-of-memory error, a corrupted model or a bug in <code>outbox.put</code>. It logs and carries on producing nothing, forever. The "after" loop handles the one failure it understands, a single session going bad, and lets everything else crash the process. Your process manager (Kubernetes, systemd) restarts it in a known-good state, and the crash shows up in monitoring.</p>
 
 <h2>Guidelines</h2>
 <h3>Catch what you can handle, where you can handle it</h3>
