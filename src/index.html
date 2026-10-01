@@ -1,5 +1,6 @@
+<p class="eyebrow">A style booklet · 15 rules · 11 chapters</p>
 <h1>Readable Python</h1>
-<p class="lede">A short style booklet for ML systems code: schedulers, engines, serving loops. It aims for the readability of codebases like vLLM and SGLang, where you can open the main loop and understand the system from one screen.</p>
+<p class="lede">Python for ML systems that reads like vLLM and SGLang: open the main loop, understand the system from one screen.</p>
 
 <p>This is not a formatting guide. Let <code>ruff format</code> and a lint config settle spacing, quotes and import order, and never discuss them in review. Everything here is about <em>structure</em>: where state lives, how a loop is shaped, what a comment is for. Those are the things that make code easy or hard to follow, and tools can't fix them.</p>
 
@@ -7,21 +8,21 @@
 
 <h2>The cheat sheet</h2>
 <ol class="cheat">
-  <li><b>Optimize for the reader.</b> Code is read far more often than it is written. When writing it is easy and reading it is hard, rewrite. <a href="principles.html">→ 1</a></li>
-  <li><b>The top-level loop is a list of named steps.</b> A reader should see the whole system in one screen. <a href="shape.html">→ 2</a></li>
-  <li><b>One class, one job. Data crosses boundaries as dataclasses.</b> <a href="shape.html">→ 2</a></li>
-  <li><b>Every piece of state has exactly one owner.</b> No parallel dicts kept in sync by hand. <a href="state.html">→ 3</a></li>
-  <li><b>Use an enum for status, not a pile of booleans.</b> <a href="state.html">→ 3</a></li>
-  <li><b>Functions return results. They don't mutate their arguments.</b> <a href="functions.html">→ 4</a></li>
-  <li><b>One level of abstraction per function, and at most four parameters.</b> <a href="functions.html">→ 4</a></li>
-  <li><b>Name things with domain words, and use the same word for the same thing everywhere.</b> <a href="naming.html">→ 5</a></li>
-  <li><b>Comments say why. The code says what. Git says when.</b> <a href="comments.html">→ 6</a></li>
-  <li><b>Fail loudly at boundaries. Decide what's recoverable in one place.</b> No blanket <code>except Exception</code>. <a href="errors.html">→ 7</a></li>
-  <li><b>Each piece of mutable state belongs to one thread. Hand off with queues.</b> <a href="concurrency.html">→ 8</a></li>
-  <li><b>Only overlap work that uses different hardware, and prove it with a profile.</b> <a href="concurrency.html">→ 8</a></li>
-  <li><b>Add an abstraction at the second implementation, not the first.</b> <a href="abstractions.html">→ 9</a></li>
-  <li><b>Tests describe behaviour, one idea per test.</b> <a href="tests.html">→ 10</a></li>
-  <li><b>Review AI-written code for what to delete.</b> <a href="ai-code.html">→ 11</a></li>
+  <li><p><b>Optimize for the reader.</b> Code is read far more often than it is written. When writing it is easy and reading it is hard, rewrite.</p><a href="principles.html">ch. 01</a></li>
+  <li><p><b>The top-level loop is a list of named steps.</b> A reader should see the whole system in one screen.</p><a href="shape.html">ch. 02</a></li>
+  <li><p><b>One class, one job. Data crosses boundaries as dataclasses.</b></p><a href="shape.html">ch. 02</a></li>
+  <li><p><b>Every piece of state has exactly one owner.</b> No parallel dicts kept in sync by hand.</p><a href="state.html">ch. 03</a></li>
+  <li><p><b>Use an enum for status, not a pile of booleans.</b></p><a href="state.html">ch. 03</a></li>
+  <li><p><b>Functions return results. They don't mutate their arguments.</b></p><a href="functions.html">ch. 04</a></li>
+  <li><p><b>One level of abstraction per function, and at most four parameters.</b></p><a href="functions.html">ch. 04</a></li>
+  <li><p><b>Name things with domain words, and use the same word for the same thing everywhere.</b></p><a href="naming.html">ch. 05</a></li>
+  <li><p><b>Comments say why. The code says what. Git says when.</b></p><a href="comments.html">ch. 06</a></li>
+  <li><p><b>Fail loudly at boundaries. Decide what's recoverable in one place.</b> No blanket <code>except Exception</code>.</p><a href="errors.html">ch. 07</a></li>
+  <li><p><b>Each piece of mutable state belongs to one thread. Hand off with queues.</b></p><a href="concurrency.html">ch. 08</a></li>
+  <li><p><b>Only overlap work that uses different hardware, and prove it with a profile.</b></p><a href="concurrency.html">ch. 08</a></li>
+  <li><p><b>Add an abstraction at the second implementation, not the first.</b></p><a href="abstractions.html">ch. 09</a></li>
+  <li><p><b>Tests describe behaviour, one idea per test.</b></p><a href="tests.html">ch. 10</a></li>
+  <li><p><b>Review AI-written code for what to delete.</b></p><a href="ai-code.html">ch. 11</a></li>
 </ol>
 
 <h2>Contents</h2>

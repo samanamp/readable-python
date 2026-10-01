@@ -3,26 +3,47 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>11. Reviewing AI-written code · Readable Python</title>
+<title>Reviewing AI-written code · Readable Python</title>
 <meta name="description" content="What to cut before it merges.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400..700&family=Atkinson+Hyperlegible+Next:ital,wght@0,400..800;1,400&display=swap">
 <link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%275%27 fill=%27%23ffe55c%27/%3E%3Ctext x=%2716%27 y=%2721.5%27 font-family=%27monospace%27 font-size=%2714%27 font-weight=%27700%27 text-anchor=%27middle%27 fill=%27%2315181d%27%3ERP%3C/text%3E%3C/svg%3E">
 <script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
-<header class="site">
-  <a href="index.html">Readable Python</a>
-  <span><span class="crumb">Chapter 11 of 11</span> <button class="theme" type="button" onclick="toggleTheme()">theme</button></span>
-</header>
+<div class="frame">
+<nav class="rail" aria-label="Contents">
+  <div class="book"><a href="index.html">Readable Python</a><button class="theme" type="button" onclick="toggleTheme()">theme</button></div>
+  <details><summary>Contents</summary>
+    <ol>
+      <li><a href="index.html"><span class="n">RP</span><span>Cheat sheet</span></a></li>
+      <li><a href="principles.html"><span class="n">01</span><span>Principles</span></a></li>
+      <li><a href="shape.html"><span class="n">02</span><span>The shape of a system</span></a></li>
+      <li><a href="state.html"><span class="n">03</span><span>State</span></a></li>
+      <li><a href="functions.html"><span class="n">04</span><span>Functions</span></a></li>
+      <li><a href="naming.html"><span class="n">05</span><span>Naming</span></a></li>
+      <li><a href="comments.html"><span class="n">06</span><span>Comments and docstrings</span></a></li>
+      <li><a href="errors.html"><span class="n">07</span><span>Errors</span></a></li>
+      <li><a href="concurrency.html"><span class="n">08</span><span>Concurrency and the GPU</span></a></li>
+      <li><a href="abstractions.html"><span class="n">09</span><span>Abstractions</span></a></li>
+      <li><a href="tests.html"><span class="n">10</span><span>Tests</span></a></li>
+      <li><a href="ai-code.html" aria-current="page"><span class="n">11</span><span>Reviewing AI-written code</span></a></li>
+    </ol>
+  </details>
+</nav>
+
 <main>
-<h1><span class="num">11</span>Reviewing AI-written code</h1>
+<p class="eyebrow">Chapter 11 of 11</p>
+<h1>Reviewing AI-written code</h1>
 <p class="lede">What to cut before it merges.</p>
 <p>Coding agents now write a large share of new code. They're fast, thorough and good at following explicit rules, and they have recognizable habits that work against readability. Reviewing their output is mostly about subtraction.</p>
 
-<div class="rule">Rule 15. Review AI-written code for what to delete.
-<span class="why">An agent rarely leaves something out. It tends to add: extra defensiveness, extra generality, extra explanation. The fastest review question is "what here could go?"</span></div>
+<div class="rule"><span class="code">RP15</span><div><p class="stmt">Review AI-written code for what to delete.</p><p class="why">An agent rarely leaves something out. It tends to add: extra defensiveness, extra generality, extra explanation. The fastest review question is "what here could go?"</p></div></div>
 
 <h2>Common habits, and the fix</h2>
-<table>
+<div class="table-wrap"><table>
   <tr><th>Habit</th><th>Looks like</th><th>Fix</th></tr>
   <tr><td>Narrated comments</td><td>Comments restating each line, numbered step comments, essays in docstrings</td><td>Keep only <em>why</em> comments (<a href="comments.html">chapter 6</a>)</td></tr>
   <tr><td>History in code</td><td>"Previously…", "This replaces…", references to PRs, tickets and design-doc sections</td><td>Move it to the PR description</td></tr>
@@ -34,22 +55,22 @@
   <tr><td>Concurrency by default</td><td>Extra threads, executors, streams or pipelining "for performance" with no profile</td><td>Remove, or require a timeline (<a href="concurrency.html">chapter 8</a>)</td></tr>
   <tr><td>Giant PRs</td><td>1,000+ lines landing at once, design and implementation together</td><td>Ask for a short design note first, then small PRs</td></tr>
   <tr><td>Style noise</td><td>Markdown bold and em-dashes in docstrings, emoji in logs</td><td>Plain text</td></tr>
-</table>
+</table></div>
 
 <h2>A review checklist</h2>
 <ol>
-  <li>Read the main loop or entry point first. Can you say what the change does from that alone? (<a href="shape.html">rule 2</a>)</li>
-  <li>For each new piece of state: who owns it? Is it duplicated anywhere? (<a href="state.html">rule 4</a>)</li>
-  <li>For each new class or protocol: how many implementations exist today? (<a href="abstractions.html">rule 13</a>)</li>
-  <li>For each <code>except</code>: what exactly is caught, and is this the layer that should decide? (<a href="errors.html">rule 10</a>)</li>
-  <li>For each thread, task, stream or cache: where's the profile? (<a href="concurrency.html">rule 12</a>)</li>
-  <li>For each comment: does it say why? (<a href="comments.html">rule 9</a>)</li>
-  <li>Do the test names, read alone, describe the behaviour? (<a href="tests.html">rule 14</a>)</li>
+  <li>Read the main loop or entry point first. Can you say what the change does from that alone? (<a href="shape.html">RP02</a>)</li>
+  <li>For each new piece of state: who owns it? Is it duplicated anywhere? (<a href="state.html">RP04</a>)</li>
+  <li>For each new class or protocol: how many implementations exist today? (<a href="abstractions.html">RP13</a>)</li>
+  <li>For each <code>except</code>: what exactly is caught, and is this the layer that should decide? (<a href="errors.html">RP10</a>)</li>
+  <li>For each thread, task, stream or cache: where's the profile? (<a href="concurrency.html">RP12</a>)</li>
+  <li>For each comment: does it say why? (<a href="comments.html">RP09</a>)</li>
+  <li>Do the test names, read alone, describe the behaviour? (<a href="tests.html">RP14</a>)</li>
 </ol>
 
 <h2>Prevention: tell the agent up front</h2>
 <p>Agents follow written instructions well. Put the rules where they'll be read, e.g. <code>AGENTS.md</code> or <code>CLAUDE.md</code> at the repo root:</p>
-<pre><code>## Code style
+<pre><code class="nohighlight">## Code style
 Follow the Readable Python booklet: &lt;link to this site&gt;
 - The top-level loop is a list of named steps; one class, one job.
 - Every piece of state has one owner. No parallel dicts. Enums for status.
@@ -60,15 +81,16 @@ Follow the Readable Python booklet: &lt;link to this site&gt;
 - No abstraction (Protocol, registry, option flag) until a second implementation exists.
 - Keep PRs under ~400 lines; propose a design note first for anything larger.</code></pre>
 <p>Then review against the same list. When the instructions and the review agree, the agent's next attempt is usually right.</p>
-<nav class="pager"><a href="tests.html"><span>Previous</span>10. Tests</a></nav>
+
+<nav class="pager" aria-label="Chapters"><a class="prev" href="tests.html"><span>Previous · 10</span>Tests</a></nav>
+<footer class="site"><p>Formatting is left to <code>ruff format</code>. This booklet is about structure. Source on <a href="https://github.com/samanamp/readable-python">GitHub</a>.</p></footer>
 </main>
-<footer class="site">
-  <p>Written for humans first. Formatting is left to <code>ruff format</code>; this booklet is about structure.</p>
-</footer>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
 <script>
 if (window.hljs) hljs.highlightAll();
+if (matchMedia("(min-width: 64rem)").matches) document.querySelector(".rail details").open = true;
 function toggleTheme() {
   var d = document.documentElement;
   var dark = d.dataset.theme ? d.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;

@@ -3,26 +3,46 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>8. Concurrency and the GPU · Readable Python</title>
+<title>Concurrency and the GPU · Readable Python</title>
 <meta name="description" content="Few threads, one owner per thread, overlap only what overlaps.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400..700&family=Atkinson+Hyperlegible+Next:ital,wght@0,400..800;1,400&display=swap">
 <link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%275%27 fill=%27%23ffe55c%27/%3E%3Ctext x=%2716%27 y=%2721.5%27 font-family=%27monospace%27 font-size=%2714%27 font-weight=%27700%27 text-anchor=%27middle%27 fill=%27%2315181d%27%3ERP%3C/text%3E%3C/svg%3E">
 <script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
-<header class="site">
-  <a href="index.html">Readable Python</a>
-  <span><span class="crumb">Chapter 8 of 11</span> <button class="theme" type="button" onclick="toggleTheme()">theme</button></span>
-</header>
+<div class="frame">
+<nav class="rail" aria-label="Contents">
+  <div class="book"><a href="index.html">Readable Python</a><button class="theme" type="button" onclick="toggleTheme()">theme</button></div>
+  <details><summary>Contents</summary>
+    <ol>
+      <li><a href="index.html"><span class="n">RP</span><span>Cheat sheet</span></a></li>
+      <li><a href="principles.html"><span class="n">01</span><span>Principles</span></a></li>
+      <li><a href="shape.html"><span class="n">02</span><span>The shape of a system</span></a></li>
+      <li><a href="state.html"><span class="n">03</span><span>State</span></a></li>
+      <li><a href="functions.html"><span class="n">04</span><span>Functions</span></a></li>
+      <li><a href="naming.html"><span class="n">05</span><span>Naming</span></a></li>
+      <li><a href="comments.html"><span class="n">06</span><span>Comments and docstrings</span></a></li>
+      <li><a href="errors.html"><span class="n">07</span><span>Errors</span></a></li>
+      <li><a href="concurrency.html" aria-current="page"><span class="n">08</span><span>Concurrency and the GPU</span></a></li>
+      <li><a href="abstractions.html"><span class="n">09</span><span>Abstractions</span></a></li>
+      <li><a href="tests.html"><span class="n">10</span><span>Tests</span></a></li>
+      <li><a href="ai-code.html"><span class="n">11</span><span>Reviewing AI-written code</span></a></li>
+    </ol>
+  </details>
+</nav>
+
 <main>
-<h1><span class="num">8</span>Concurrency and the GPU</h1>
+<p class="eyebrow">Chapter 08 of 11</p>
+<h1>Concurrency and the GPU</h1>
 <p class="lede">Few threads, one owner per thread, overlap only what overlaps.</p>
 <p>Concurrency is where readable code goes to die. Every extra thread, task or stream multiplies the orders in which things can happen. Use as little as the problem allows, and give each concurrent actor one clear job.</p>
 
-<div class="rule">Rule 11. Each piece of mutable state belongs to one thread. Hand off with queues.
-<span class="why">If only one thread ever touches the scheduler's state, it needs no locks and can be read like sequential code. Threads talk by passing immutable messages.</span></div>
+<div class="rule"><span class="code">RP11</span><div><p class="stmt">Each piece of mutable state belongs to one thread. Hand off with queues.</p><p class="why">If only one thread ever touches the scheduler's state, it needs no locks and can be read like sequential code. Threads talk by passing immutable messages.</p></div></div>
 
-<div class="rule">Rule 12. Only overlap work that uses different hardware, and prove it with a profile.
-<span class="why">Concurrency helps when two things can really run at once: CPU next to GPU, a copy engine next to the SMs, a hardware encoder next to compute. Two compute kernels fighting over the same saturated SMs gain nothing and add jitter.</span></div>
+<div class="rule"><span class="code">RP12</span><div><p class="stmt">Only overlap work that uses different hardware, and prove it with a profile.</p><p class="why">Concurrency helps when two things can really run at once: CPU next to GPU, a copy engine next to the SMs, a hardware encoder next to compute. Two compute kernels fighting over the same saturated SMs gain nothing and add jitter.</p></div></div>
 
 <h2>The basic shape for a serving process</h2>
 <p>Two actors, one queue in each direction:</p>
@@ -85,15 +105,16 @@ def run(self, inbox, outbox, stop):
 
 <h3>Keep the profile in the PR</h3>
 <p>Any change that adds a thread, stream, pipeline stage or cache includes before/after numbers: a timeline screenshot (Nsight Systems, <code>torch.profiler</code>) and the step time. No numbers, no concurrency.</p>
-<nav class="pager"><a href="errors.html"><span>Previous</span>7. Errors</a><a class="next" href="abstractions.html"><span>Next</span>9. Abstractions</a></nav>
+
+<nav class="pager" aria-label="Chapters"><a class="prev" href="errors.html"><span>Previous · 07</span>Errors</a><a class="next" href="abstractions.html"><span>Next · 09</span>Abstractions</a></nav>
+<footer class="site"><p>Formatting is left to <code>ruff format</code>. This booklet is about structure. Source on <a href="https://github.com/samanamp/readable-python">GitHub</a>.</p></footer>
 </main>
-<footer class="site">
-  <p>Written for humans first. Formatting is left to <code>ruff format</code>; this booklet is about structure.</p>
-</footer>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
 <script>
 if (window.hljs) hljs.highlightAll();
+if (matchMedia("(min-width: 64rem)").matches) document.querySelector(".rail details").open = true;
 function toggleTheme() {
   var d = document.documentElement;
   var dark = d.dataset.theme ? d.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;

@@ -3,18 +3,40 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>1. Principles · Readable Python</title>
+<title>Principles · Readable Python</title>
 <meta name="description" content="Five ideas the rest of the booklet follows from.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400..700&family=Atkinson+Hyperlegible+Next:ital,wght@0,400..800;1,400&display=swap">
 <link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%275%27 fill=%27%23ffe55c%27/%3E%3Ctext x=%2716%27 y=%2721.5%27 font-family=%27monospace%27 font-size=%2714%27 font-weight=%27700%27 text-anchor=%27middle%27 fill=%27%2315181d%27%3ERP%3C/text%3E%3C/svg%3E">
 <script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
-<header class="site">
-  <a href="index.html">Readable Python</a>
-  <span><span class="crumb">Chapter 1 of 11</span> <button class="theme" type="button" onclick="toggleTheme()">theme</button></span>
-</header>
+<div class="frame">
+<nav class="rail" aria-label="Contents">
+  <div class="book"><a href="index.html">Readable Python</a><button class="theme" type="button" onclick="toggleTheme()">theme</button></div>
+  <details><summary>Contents</summary>
+    <ol>
+      <li><a href="index.html"><span class="n">RP</span><span>Cheat sheet</span></a></li>
+      <li><a href="principles.html" aria-current="page"><span class="n">01</span><span>Principles</span></a></li>
+      <li><a href="shape.html"><span class="n">02</span><span>The shape of a system</span></a></li>
+      <li><a href="state.html"><span class="n">03</span><span>State</span></a></li>
+      <li><a href="functions.html"><span class="n">04</span><span>Functions</span></a></li>
+      <li><a href="naming.html"><span class="n">05</span><span>Naming</span></a></li>
+      <li><a href="comments.html"><span class="n">06</span><span>Comments and docstrings</span></a></li>
+      <li><a href="errors.html"><span class="n">07</span><span>Errors</span></a></li>
+      <li><a href="concurrency.html"><span class="n">08</span><span>Concurrency and the GPU</span></a></li>
+      <li><a href="abstractions.html"><span class="n">09</span><span>Abstractions</span></a></li>
+      <li><a href="tests.html"><span class="n">10</span><span>Tests</span></a></li>
+      <li><a href="ai-code.html"><span class="n">11</span><span>Reviewing AI-written code</span></a></li>
+    </ol>
+  </details>
+</nav>
+
 <main>
-<h1><span class="num">1</span>Principles</h1>
+<p class="eyebrow">Chapter 01 of 11</p>
+<h1>Principles</h1>
 <p class="lede">Five ideas the rest of the booklet follows from.</p>
 <p>The rules in later chapters are applications of five ideas. When a rule doesn't fit your situation, fall back to these.</p>
 
@@ -35,16 +57,17 @@
 <h2>5. Measure before you optimize</h2>
 <p>Performance structure (extra threads, extra CUDA streams, caches, pipelining) is the most expensive kind of complexity, because it's hard to read <em>and</em> hard to verify. Add it only when a profile shows the problem, and keep the profile's numbers in the PR description. If you can't show a timeline where the change helps, it doesn't go in.</p>
 
-<div class="rule">The reviewer's question for every PR: "Is this the simplest code that does what we need today, and could a newcomer follow it?"</div>
-<nav class="pager"><a href="index.html"><span>Previous</span>Cheat sheet &amp; contents</a><a class="next" href="shape.html"><span>Next</span>2. The shape of a system</a></nav>
+<div class="rule plain"><p class="stmt">The reviewer's question for every PR: "Is this the simplest code that does what we need today, and could a newcomer follow it?"</p></div>
+
+<nav class="pager" aria-label="Chapters"><a class="prev" href="index.html"><span>Previous</span>Cheat sheet</a><a class="next" href="shape.html"><span>Next · 02</span>The shape of a system</a></nav>
+<footer class="site"><p>Formatting is left to <code>ruff format</code>. This booklet is about structure. Source on <a href="https://github.com/samanamp/readable-python">GitHub</a>.</p></footer>
 </main>
-<footer class="site">
-  <p>Written for humans first. Formatting is left to <code>ruff format</code>; this booklet is about structure.</p>
-</footer>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
 <script>
 if (window.hljs) hljs.highlightAll();
+if (matchMedia("(min-width: 64rem)").matches) document.querySelector(".rail details").open = true;
 function toggleTheme() {
   var d = document.documentElement;
   var dark = d.dataset.theme ? d.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;

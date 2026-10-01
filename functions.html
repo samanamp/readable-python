@@ -3,24 +3,44 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>4. Functions · Readable Python</title>
+<title>Functions · Readable Python</title>
 <meta name="description" content="Small, one level of abstraction, results instead of side effects.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400..700&family=Atkinson+Hyperlegible+Next:ital,wght@0,400..800;1,400&display=swap">
 <link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%275%27 fill=%27%23ffe55c%27/%3E%3Ctext x=%2716%27 y=%2721.5%27 font-family=%27monospace%27 font-size=%2714%27 font-weight=%27700%27 text-anchor=%27middle%27 fill=%27%2315181d%27%3ERP%3C/text%3E%3C/svg%3E">
 <script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
-<header class="site">
-  <a href="index.html">Readable Python</a>
-  <span><span class="crumb">Chapter 4 of 11</span> <button class="theme" type="button" onclick="toggleTheme()">theme</button></span>
-</header>
-<main>
-<h1><span class="num">4</span>Functions</h1>
-<p class="lede">Small, one level of abstraction, results instead of side effects.</p>
-<div class="rule">Rule 6. Functions return results. They don't mutate their arguments.
-<span class="why">A caller reading <code>x = f(a, b)</code> assumes <code>a</code> and <code>b</code> are unchanged. When they aren't, every call site becomes a trap.</span></div>
+<div class="frame">
+<nav class="rail" aria-label="Contents">
+  <div class="book"><a href="index.html">Readable Python</a><button class="theme" type="button" onclick="toggleTheme()">theme</button></div>
+  <details><summary>Contents</summary>
+    <ol>
+      <li><a href="index.html"><span class="n">RP</span><span>Cheat sheet</span></a></li>
+      <li><a href="principles.html"><span class="n">01</span><span>Principles</span></a></li>
+      <li><a href="shape.html"><span class="n">02</span><span>The shape of a system</span></a></li>
+      <li><a href="state.html"><span class="n">03</span><span>State</span></a></li>
+      <li><a href="functions.html" aria-current="page"><span class="n">04</span><span>Functions</span></a></li>
+      <li><a href="naming.html"><span class="n">05</span><span>Naming</span></a></li>
+      <li><a href="comments.html"><span class="n">06</span><span>Comments and docstrings</span></a></li>
+      <li><a href="errors.html"><span class="n">07</span><span>Errors</span></a></li>
+      <li><a href="concurrency.html"><span class="n">08</span><span>Concurrency and the GPU</span></a></li>
+      <li><a href="abstractions.html"><span class="n">09</span><span>Abstractions</span></a></li>
+      <li><a href="tests.html"><span class="n">10</span><span>Tests</span></a></li>
+      <li><a href="ai-code.html"><span class="n">11</span><span>Reviewing AI-written code</span></a></li>
+    </ol>
+  </details>
+</nav>
 
-<div class="rule">Rule 7. One level of abstraction per function, and at most four parameters.
-<span class="why">A function that mixes "decide what to do" with "flip these bits" makes the reader zoom in and out on every line. More than four parameters usually means a missing object.</span></div>
+<main>
+<p class="eyebrow">Chapter 04 of 11</p>
+<h1>Functions</h1>
+<p class="lede">Small, one level of abstraction, results instead of side effects.</p>
+<div class="rule"><span class="code">RP06</span><div><p class="stmt">Functions return results. They don't mutate their arguments.</p><p class="why">A caller reading <code>x = f(a, b)</code> assumes <code>a</code> and <code>b</code> are unchanged. When they aren't, every call site becomes a trap.</p></div></div>
+
+<div class="rule"><span class="code">RP07</span><div><p class="stmt">One level of abstraction per function, and at most four parameters.</p><p class="why">A function that mixes "decide what to do" with "flip these bits" makes the reader zoom in and out on every line. More than four parameters usually means a missing object.</p></div></div>
 
 <h2>Hidden mutation</h2>
 <p>A free function that takes the caller's containers and fills them in is the most common way readable code turns unreadable.</p>
@@ -89,15 +109,16 @@ def render(frames: Tensor, config: EncoderConfig, device: torch.device) -&gt; by
 
 <h3>Type-annotate signatures</h3>
 <p>Annotate every public function's parameters and return value. It's the cheapest documentation there is, and it stays correct because the type checker reads it too. Inside function bodies, annotate only where it helps the reader.</p>
-<nav class="pager"><a href="state.html"><span>Previous</span>3. State</a><a class="next" href="naming.html"><span>Next</span>5. Naming</a></nav>
+
+<nav class="pager" aria-label="Chapters"><a class="prev" href="state.html"><span>Previous · 03</span>State</a><a class="next" href="naming.html"><span>Next · 05</span>Naming</a></nav>
+<footer class="site"><p>Formatting is left to <code>ruff format</code>. This booklet is about structure. Source on <a href="https://github.com/samanamp/readable-python">GitHub</a>.</p></footer>
 </main>
-<footer class="site">
-  <p>Written for humans first. Formatting is left to <code>ruff format</code>; this booklet is about structure.</p>
-</footer>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
 <script>
 if (window.hljs) hljs.highlightAll();
+if (matchMedia("(min-width: 64rem)").matches) document.querySelector(".rail details").open = true;
 function toggleTheme() {
   var d = document.documentElement;
   var dark = d.dataset.theme ? d.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;

@@ -17,66 +17,95 @@ CHAPTERS = [
   ["tests",         10,  "Tests",                        "Tests are the specification people actually read."],
   ["ai-code",       11,  "Reviewing AI-written code",    "What to cut before it merges."],
 ]
+FONTS = "https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400..700" \
+        "&family=Atkinson+Hyperlegible+Next:ital,wght@0,400..800;1,400&display=swap"
 
-HEAD = <<~HTML
-  <!doctype html>
-  <html lang="en">
-  <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>%{title}</title>
-  <meta name="description" content="%{lede}">
-  <link rel="stylesheet" href="style.css">
-  <script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
-  </head>
-  <body>
-  <header class="site">
-    <a href="index.html">#{TITLE}</a>
-    <span><span class="crumb">%{crumb}</span> <button class="theme" type="button" onclick="toggleTheme()">theme</button></span>
-  </header>
-  <main>
-HTML
+def rp(n); format("RP%02d", n.to_i); end
 
-FOOT = <<~HTML
-  %{pager}
-  </main>
-  <footer class="site">
-    <p>Written for humans first. Formatting is left to <code>ruff format</code>; this booklet is about structure.</p>
-  </footer>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
-  <script>
-  if (window.hljs) hljs.highlightAll();
-  function toggleTheme() {
-    var d = document.documentElement;
-    var dark = d.dataset.theme ? d.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-    d.dataset.theme = dark ? "light" : "dark";
-    try { localStorage.setItem("theme", d.dataset.theme); } catch (e) {}
-  }
-  </script>
-  </body>
-  </html>
-HTML
-
-def link(ch, label)
-  slug, num, title = ch
-  name = num ? "#{num}. #{title}" : "Cheat sheet &amp; contents"
-  %(<a href="#{slug}.html"><span>#{label}</span>#{name}</a>)
+# Source fragments say "Rule 4." in rule boxes and "rule 4" in prose; render both as lint codes.
+def transform(body)
+  body = body.gsub(%r{<div class="rule">Rule (\d+)\. (.*?)\s*<span class="why">(.*?)</span></div>}m) do
+    %(<div class="rule"><span class="code">#{rp($1)}</span><div><p class="stmt">#{$2.strip}</p><p class="why">#{$3.strip}</p></div></div>)
+  end
+  body = body.gsub(%r{<div class="rule">(?!<span)(.*?)</div>}m) { %(<div class="rule plain"><p class="stmt">#{$1.strip}</p></div>) }
+  body = body.gsub(/\b[Rr]ule (\d+)\b/) { rp($1) }
+  body.gsub("<table>", %(<div class="table-wrap"><table>)).gsub("</table>", "</table></div>")
 end
 
-CHAPTERS.each_with_index do |ch, i|
-  slug, num, title, lede = ch
-  body = File.read(File.join(__dir__, "src", "#{slug}.html"))
+def rail(current)
+  items = CHAPTERS.drop(1).map do |slug, num, title|
+    cur = slug == current ? %( aria-current="page") : ""
+    %(<li><a href="#{slug}.html"#{cur}><span class="n">#{format('%02d', num)}</span><span>#{title}</span></a></li>)
+  end
+  open = ""
+  <<~HTML
+    <nav class="rail" aria-label="Contents">
+      <div class="book"><a href="index.html">#{TITLE}</a><button class="theme" type="button" onclick="toggleTheme()">theme</button></div>
+      <details#{open}><summary>Contents</summary>
+        <ol>
+          <li><a href="index.html"#{current == "index" ? ' aria-current="page"' : ""}><span class="n">RP</span><span>Cheat sheet</span></a></li>
+          #{items.join("\n      ")}
+        </ol>
+      </details>
+    </nav>
+  HTML
+end
+
+def pager_link(ch, label, cls)
+  slug, num, title = ch
+  name = num ? title : "Cheat sheet"
+  %(<a class="#{cls}" href="#{slug}.html"><span>#{label}#{num ? " · #{format('%02d', num)}" : ""}</span>#{name}</a>)
+end
+
+CHAPTERS.each_with_index do |(slug, num, title, lede), i|
+  body = transform(File.read(File.join(__dir__, "src", "#{slug}.html")))
   prev_ch = i > 0 ? CHAPTERS[i - 1] : nil
   next_ch = CHAPTERS[i + 1]
-  pager = +%(<nav class="pager">)
-  pager << link(prev_ch, "Previous") if prev_ch
-  pager << link(next_ch, "Next").sub("<a ", %(<a class="next" )) if next_ch
+  pager = +%(<nav class="pager" aria-label="Chapters">)
+  pager << pager_link(prev_ch, "Previous", "prev") if prev_ch
+  pager << pager_link(next_ch, "Next", "next") if next_ch
   pager << "</nav>"
-  heading = num ? %(<h1><span class="num">#{num}</span>#{title}</h1>\n<p class="lede">#{lede}</p>\n) : ""
-  page_title = num ? "#{num}. #{title} · #{TITLE}" : TITLE
-  crumb = num ? "Chapter #{num} of #{CHAPTERS.size - 1}" : ""
-  html = format(HEAD, title: page_title, lede: lede, crumb: crumb) + heading + body + format(FOOT, pager: pager)
+  heading = num ? %(<p class="eyebrow">Chapter #{format('%02d', num)} of #{CHAPTERS.size - 1}</p>\n<h1>#{title}</h1>\n<p class="lede">#{lede}</p>\n) : ""
+  page_title = num ? "#{title} · #{TITLE}" : TITLE
+  html = <<~HTML
+    <!doctype html>
+    <html lang="en">
+    <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>#{page_title}</title>
+    <meta name="description" content="#{lede}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="#{FONTS}">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%275%27 fill=%27%23ffe55c%27/%3E%3Ctext x=%2716%27 y=%2721.5%27 font-family=%27monospace%27 font-size=%2714%27 font-weight=%27700%27 text-anchor=%27middle%27 fill=%27%2315181d%27%3ERP%3C/text%3E%3C/svg%3E">
+    <script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
+    </head>
+    <body>
+    <div class="frame">
+    #{rail(slug)}
+    <main>
+    #{heading}#{body}
+    #{pager}
+    <footer class="site"><p>Formatting is left to <code>ruff format</code>. This booklet is about structure. Source on <a href="https://github.com/samanamp/readable-python">GitHub</a>.</p></footer>
+    </main>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script>
+    if (window.hljs) hljs.highlightAll();
+    if (matchMedia("(min-width: 64rem)").matches) document.querySelector(".rail details").open = true;
+    function toggleTheme() {
+      var d = document.documentElement;
+      var dark = d.dataset.theme ? d.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+      d.dataset.theme = dark ? "light" : "dark";
+      try { localStorage.setItem("theme", d.dataset.theme); } catch (e) {}
+    }
+    </script>
+    </body>
+    </html>
+  HTML
   File.write(File.join(__dir__, "#{slug}.html"), html)
-  puts "wrote #{slug}.html"
 end
+puts "built #{CHAPTERS.size} pages"
