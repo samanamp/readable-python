@@ -1,0 +1,73 @@
+<div class="rule">Rule 6. Functions return results. They don't mutate their arguments.
+<span class="why">A caller reading <code>x = f(a, b)</code> assumes <code>a</code> and <code>b</code> are unchanged. When they aren't, every call site becomes a trap.</span></div>
+
+<div class="rule">Rule 7. One level of abstraction per function, and at most four parameters.
+<span class="why">A function that mixes "decide what to do" with "flip these bits" makes the reader zoom in and out on every line. More than four parameters usually means a missing object.</span></div>
+
+<h2>Hidden mutation</h2>
+<p>A free function that takes the caller's containers and fills them in is the most common way readable code turns unreadable.</p>
+<div class="pair">
+<figure class="before"><figcaption>Before</figcaption>
+<pre><code class="language-python">async def _try_join(model, session_id, ctx, inputs, contexts) -&gt; bool:
+    try:
+        await model.join(session_id, ctx)
+    except CapacityError:
+        log.warning("rejected %s", session_id)
+        return False
+    inputs[session_id] = {}       # mutates the caller's dict
+    contexts[session_id] = ctx    # and this one
+    return True</code></pre></figure>
+<figure class="after"><figcaption>After</figcaption>
+<pre><code class="language-python">class Scheduler:
+    def join(self, session_id: str, context: dict) -&gt; bool:
+        try:
+            self.model.join(session_id, context)
+        except CapacityError:
+            log.warning("rejected %s: model at capacity", session_id)
+            return False
+        self.sessions[session_id] = Session(session_id, context)
+        return True</code></pre></figure>
+</div>
+<p>The method changes state too, but it changes <em>its own</em> state, which is what a reader expects from <code>self.join(...)</code>. The rule is about surprise: mutate yourself, never your arguments.</p>
+
+<h2>Too many parameters</h2>
+<div class="pair">
+<figure class="before"><figcaption>Before</figcaption>
+<pre><code class="language-python">def render(frames, width, height, fps, codec, bitrate, keyframe_every, gpu_id):
+    ...</code></pre></figure>
+<figure class="after"><figcaption>After</figcaption>
+<pre><code class="language-python">@dataclass(frozen=True)
+class EncoderConfig:
+    width: int
+    height: int
+    fps: float
+    codec: str = "h264"
+    bitrate_kbps: int = 4000
+    keyframe_every: int = 60
+
+def render(frames: Tensor, config: EncoderConfig, device: torch.device) -&gt; bytes:
+    ...</code></pre></figure>
+</div>
+
+<h2>Guidelines</h2>
+<h3>Command or query, not both</h3>
+<p>A function either answers a question (<code>next_batch()</code>, <code>can_accept()</code>) or does something (<code>join()</code>, <code>flush()</code>). Avoid functions that do something <em>and</em> return an unrelated answer. Returning whether the action succeeded is fine.</p>
+
+<h3>Return early, keep the happy path flat</h3>
+<pre><code class="language-python">def admit(self, request: Request) -&gt; Session | None:
+    if request.model != self.model_name:
+        return None
+    if len(self.sessions) &gt;= self.capacity:
+        return None
+    session = Session(request.id, request.context)
+    self.sessions[session.id] = session
+    return session</code></pre>
+
+<h3>Keyword-only for anything ambiguous</h3>
+<p><code>resize(img, 512, 512, True)</code> tells the reader nothing. <code>resize(img, width=512, height=512, keep_aspect=True)</code> does. Use <code>*</code> to force keywords for booleans and anything after the first two arguments.</p>
+
+<h3>No closures defined inside long functions</h3>
+<p>A helper defined halfway through a 100-line function captures variables from around it, and the reader has to work out which. Make it a method or a module-level function with explicit parameters.</p>
+
+<h3>Type-annotate signatures</h3>
+<p>Annotate every public function's parameters and return value. It's the cheapest documentation there is, and it stays correct because the type checker reads it too. Inside function bodies, annotate only where it helps the reader.</p>

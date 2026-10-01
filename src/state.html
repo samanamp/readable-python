@@ -1,0 +1,80 @@
+<p>Most hard-to-follow code is hard because of state: who can change this value, and what else has to change with it? Make that answer short.</p>
+
+<div class="rule">Rule 4. Every piece of state has exactly one owner.
+<span class="why">If two places can change a value, every reader has to check both. If a value must change together with another, they belong in the same object.</span></div>
+
+<div class="rule">Rule 5. Use an enum for status, not a pile of booleans.
+<span class="why">Three booleans allow eight combinations, most of them nonsense. An enum lists the states that can actually happen.</span></div>
+
+<h2>Parallel containers</h2>
+<p>A classic smell: several dicts or sets keyed by the same id, which every code path must update together.</p>
+
+<div class="pair">
+<figure class="before"><figcaption>Before</figcaption>
+<pre><code class="language-python">inputs: dict[str, dict] = {}
+contexts: dict[str, dict] = {}
+running: set[str] = set()
+joined_at: dict[str, float] = {}
+
+def leave(session_id):
+    inputs.pop(session_id, None)
+    contexts.pop(session_id, None)
+    running.discard(session_id)
+    # joined_at forgotten here: a slow leak nobody notices</code></pre></figure>
+<figure class="after"><figcaption>After</figcaption>
+<pre><code class="language-python">@dataclass
+class Session:
+    id: str
+    context: dict
+    joined_at: float
+    latest_input: dict = field(default_factory=dict)
+    running: bool = True
+
+sessions: dict[str, Session] = {}
+
+def leave(session_id: str) -&gt; None:
+    sessions.pop(session_id, None)</code></pre></figure>
+</div>
+<p>Adding a field to <code>Session</code> can't create a leak, because removal is one line that removes everything.</p>
+
+<h2>Status as an enum</h2>
+<div class="pair">
+<figure class="before"><figcaption>Before</figcaption>
+<pre><code class="language-python">class Worker:
+    def __init__(self):
+        self.ready = False
+        self.busy = False
+        self.draining = False
+        self.failed = False
+
+    def can_accept(self):
+        return self.ready and not self.busy and not self.draining and not self.failed</code></pre></figure>
+<figure class="after"><figcaption>After</figcaption>
+<pre><code class="language-python">class WorkerState(Enum):
+    LOADING = auto()
+    IDLE = auto()
+    BUSY = auto()
+    DRAINING = auto()
+    FAILED = auto()
+
+class Worker:
+    def __init__(self):
+        self.state = WorkerState.LOADING
+
+    def can_accept(self) -&gt; bool:
+        return self.state is WorkerState.IDLE</code></pre></figure>
+</div>
+<p>If transitions matter, put them in one method (<code>def transition(self, to: WorkerState)</code>) that rejects illegal moves. Then the full state machine is in one place.</p>
+
+<h2>Guidelines</h2>
+<h3>Owners are objects, not modules</h3>
+<p>Module-level mutable globals have every function in the module as a potential writer. Put the state on an instance and pass the instance in.</p>
+
+<h3>Prefer immutable messages</h3>
+<p>Anything that crosses a boundary (a message on a queue, a batch handed to the model, a result coming back) should be a <code>@dataclass(frozen=True)</code> or a plain value. Then the receiver can't accidentally change the sender's copy, and you never need a defensive deep copy.</p>
+
+<h3>Derive, don't store</h3>
+<p>If a value can be computed from other state cheaply (<code>len(self.sessions)</code>, "is anyone running?"), compute it. Every stored copy is another thing to keep in sync.</p>
+
+<h3>Make invalid states unrepresentable</h3>
+<p>If a session only has a <code>connection</code> once it's <code>STREAMING</code>, consider a separate type or an <code>Optional</code> that's checked in exactly one place, rather than a field that's "usually set".</p>

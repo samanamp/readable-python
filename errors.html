@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7. Errors · Readable Python</title>
+<meta name="description" content="Fail loudly at boundaries; decide recovery in one place.">
+<link rel="stylesheet" href="style.css">
+<script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
+</head>
+<body>
+<header class="site">
+  <a href="index.html">Readable Python</a>
+  <span><span class="crumb">Chapter 7 of 11</span> <button class="theme" type="button" onclick="toggleTheme()">theme</button></span>
+</header>
+<main>
+<h1><span class="num">7</span>Errors</h1>
+<p class="lede">Fail loudly at boundaries; decide recovery in one place.</p>
+<div class="rule">Rule 10. Fail loudly at boundaries. Decide what's recoverable in one place.
+<span class="why">Errors hidden deep in the code turn into wrong results far away from their cause. Recovery logic scattered everywhere means nobody knows what the system does when something breaks.</span></div>
+
+<h2>The blanket catch</h2>
+<div class="pair">
+<figure class="before"><figcaption>Before</figcaption>
+<pre><code class="language-python">while running:
+    try:
+        chunks = model.step(batch)
+        for chunk in chunks:
+            outbox.put(chunk)
+    except Exception:
+        log.exception("step failed; skipping tick")</code></pre></figure>
+<figure class="after"><figcaption>After</figcaption>
+<pre><code class="language-python">while running:
+    try:
+        chunks = model.step(batch)
+    except SessionError as err:
+        self.end_session(err.session_id, reason=str(err))
+        continue
+    outbox.put_all(chunks)</code></pre></figure>
+</div>
+<p>The "before" loop survives everything, including a CUDA out-of-memory error, a corrupted model or a bug in <code>outbox.put</code>. It logs and carries on producing nothing, forever. The "after" loop handles the one failure it understands, a single session going bad, and lets everything else crash the process. Your supervisor (Kubernetes, systemd) restarts it in a known-good state, and the crash shows up in monitoring.</p>
+
+<h2>Guidelines</h2>
+<h3>Catch what you can handle, where you can handle it</h3>
+<p>Catch a specific exception type at the level that knows what to do about it. If the only thing you can do is log and re-raise, don't catch at all; the top level will log it.</p>
+
+<h3>One place decides recovery</h3>
+<p>Pick one layer (usually the main loop) that owns the policy: which errors end a session, which restart a worker, which crash the process. Lower layers raise; they don't decide.</p>
+
+<h3>Validate at boundaries, trust inside</h3>
+<p>Check input once, where it enters: the HTTP handler, the queue consumer, the config loader. Turn it into a typed object there. Code inside the boundary can then assume it's valid instead of re-checking defensively on every call.</p>
+<pre><code class="language-python">@dataclass(frozen=True)
+class Input:
+    session_id: str
+    keys: frozenset[str]
+
+    @classmethod
+    def parse(cls, raw: dict) -&gt; "Input":
+        keys = raw.get("keys", [])
+        if not isinstance(keys, list) or not all(k in VALID_KEYS for k in keys):
+            raise InvalidInput(f"bad keys: {keys!r}")
+        return cls(session_id=str(raw["session_id"]), keys=frozenset(keys))</code></pre>
+
+<h3>Define a few domain exceptions</h3>
+<p>A small hierarchy (<code>CapacityError</code>, <code>SessionError</code>, <code>InvalidInput</code>) makes "what can go wrong here" explicit and lets callers catch precisely. Don't create one class per call site.</p>
+
+<h3>Error messages name the thing and the value</h3>
+<p><code>raise ValueError(f"fps must be positive, got {fps}")</code>, not <code>raise ValueError("invalid config")</code>.</p>
+
+<h3>Never silence with <code>pass</code></h3>
+<p><code>except SomeError: pass</code> needs a comment saying why ignoring it is correct. If you can't write that sentence, don't ignore it.</p>
+<nav class="pager"><a href="comments.html"><span>Previous</span>6. Comments and docstrings</a><a class="next" href="concurrency.html"><span>Next</span>8. Concurrency and the GPU</a></nav>
+</main>
+<footer class="site">
+  <p>Written for humans first. Formatting is left to <code>ruff format</code>; this booklet is about structure.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<script>
+if (window.hljs) hljs.highlightAll();
+function toggleTheme() {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  d.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("theme", d.dataset.theme); } catch (e) {}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+<p>Coding agents now write a large share of new code. They're fast, thorough and good at following explicit rules, and they have recognizable habits that work against readability. Reviewing their output is mostly about subtraction.</p>
+
+<div class="rule">Rule 15. Review AI-written code for what to delete.
+<span class="why">An agent rarely leaves something out. It tends to add: extra defensiveness, extra generality, extra explanation. The fastest review question is "what here could go?"</span></div>
+
+<h2>Common habits, and the fix</h2>
+<table>
+  <tr><th>Habit</th><th>Looks like</th><th>Fix</th></tr>
+  <tr><td>Narrated comments</td><td>Comments restating each line, numbered step comments, essays in docstrings</td><td>Keep only <em>why</em> comments (<a href="comments.html">chapter 6</a>)</td></tr>
+  <tr><td>History in code</td><td>"Previously…", "This replaces…", references to PRs, tickets and design-doc sections</td><td>Move it to the PR description</td></tr>
+  <tr><td>Citations as justification</td><td>"Matches how framework X does it (issue #12345)"</td><td>Justify with a measurement or a requirement, or drop the claim</td></tr>
+  <tr><td>Defensive wrappers</td><td><code>try/except Exception</code> around everything, <code>getattr(x, "y", None)</code> on objects whose type is known, re-validating already-validated input</td><td>Fail loudly at boundaries; trust inside (<a href="errors.html">chapter 7</a>)</td></tr>
+  <tr><td>Speculative generality</td><td>Protocols with one implementation, option flags nobody sets, "Level 1 / Level 2" contracts, plugin registries</td><td>Inline until the second case (<a href="abstractions.html">chapter 9</a>)</td></tr>
+  <tr><td>Helpers that mutate</td><td><code>_try_x(a, b, c, d, e, f)</code> filling in the caller's dicts</td><td>Make it a method on the owner (<a href="functions.html">chapter 4</a>)</td></tr>
+  <tr><td>Parallel state</td><td>Several dicts keyed by the same id, updated together in every branch</td><td>One object per entity (<a href="state.html">chapter 3</a>)</td></tr>
+  <tr><td>Concurrency by default</td><td>Extra threads, executors, streams or pipelining "for performance" with no profile</td><td>Remove, or require a timeline (<a href="concurrency.html">chapter 8</a>)</td></tr>
+  <tr><td>Giant PRs</td><td>1,000+ lines landing at once, design and implementation together</td><td>Ask for a short design note first, then small PRs</td></tr>
+  <tr><td>Style noise</td><td>Markdown bold and em-dashes in docstrings, emoji in logs</td><td>Plain text</td></tr>
+</table>
+
+<h2>A review checklist</h2>
+<ol>
+  <li>Read the main loop or entry point first. Can you say what the change does from that alone? (<a href="shape.html">rule 2</a>)</li>
+  <li>For each new piece of state: who owns it? Is it duplicated anywhere? (<a href="state.html">rule 4</a>)</li>
+  <li>For each new class or protocol: how many implementations exist today? (<a href="abstractions.html">rule 13</a>)</li>
+  <li>For each <code>except</code>: what exactly is caught, and is this the layer that should decide? (<a href="errors.html">rule 10</a>)</li>
+  <li>For each thread, task, stream or cache: where's the profile? (<a href="concurrency.html">rule 12</a>)</li>
+  <li>For each comment: does it say why? (<a href="comments.html">rule 9</a>)</li>
+  <li>Do the test names, read alone, describe the behaviour? (<a href="tests.html">rule 14</a>)</li>
+</ol>
+
+<h2>Prevention: tell the agent up front</h2>
+<p>Agents follow written instructions well. Put the rules where they'll be read, e.g. <code>AGENTS.md</code> or <code>CLAUDE.md</code> at the repo root:</p>
+<pre><code>## Code style
+Follow the Readable Python booklet: &lt;link to this site&gt;
+- The top-level loop is a list of named steps; one class, one job.
+- Every piece of state has one owner. No parallel dicts. Enums for status.
+- Functions don't mutate their arguments. At most 4 parameters.
+- Comments explain why only. No history, PR or design-doc references in code.
+- Catch specific exceptions only, at the layer that handles them.
+- No new threads, CUDA streams, caches or pipelining without a profile in the PR.
+- No abstraction (Protocol, registry, option flag) until a second implementation exists.
+- Keep PRs under ~400 lines; propose a design note first for anything larger.</code></pre>
+<p>Then review against the same list. When the instructions and the review agree, the agent's next attempt is usually right.</p>

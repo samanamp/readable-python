@@ -1,0 +1,48 @@
+<div class="rule">Rule 13. Add an abstraction at the second implementation, not the first.
+<span class="why">With one implementation you can't know which parts will vary, so the interface you design is a guess, and every reader pays for it. With two real cases, the right seam is usually obvious.</span></div>
+
+<h2>The speculative framework</h2>
+<p>A common shape in young codebases: an abstract base class, a plugin registry, a two-level contract ("implement these five methods, or optionally this sixth one to replace the loop"), a generic batching layer, three execution lanes… and one implementation, running at batch size one.</p>
+<p>Each piece might be reasonable on its own. Together they mean a newcomer reads five files and three interfaces to find the 40 lines that actually run. Worse, when the second real use case arrives, it rarely fits the interface designed for an imagined one.</p>
+
+<div class="pair">
+<figure class="before"><figcaption>Before</figcaption>
+<pre><code class="language-python">class StepPolicy(Protocol):
+    def select(self, sessions: Sequence[Session]) -&gt; Sequence[Session]: ...
+
+class AllRunningPolicy:
+    def select(self, sessions):
+        return [s for s in sessions if s.running]
+
+POLICIES: dict[str, type[StepPolicy]] = {"all_running": AllRunningPolicy}
+
+class Scheduler:
+    def __init__(self, model, policy: str = "all_running"):
+        self.policy = POLICIES[policy]()
+
+    def next_batch(self):
+        return {s.id: s.latest_input
+                for s in self.policy.select(list(self.sessions.values()))}</code></pre></figure>
+<figure class="after"><figcaption>After</figcaption>
+<pre><code class="language-python">class Scheduler:
+    def next_batch(self) -&gt; dict[str, dict]:
+        return {s.id: s.latest_input
+                for s in self.sessions.values() if s.running}</code></pre></figure>
+</div>
+<p>When a second selection policy really shows up, extract the interface then, shaped by both real cases. It takes ten minutes.</p>
+
+<h2>Guidelines</h2>
+<h3>Earn generality with numbers</h3>
+<p>Batching, caching, pooling and pipelining are abstractions over <em>performance</em>. Add them when a measurement shows the need, for a specific model or workload, and keep the measurement in the PR (<a href="concurrency.html">chapter 8</a>).</p>
+
+<h3>Prefer composition of plain functions to class hierarchies</h3>
+<p>Inheritance deeper than one level makes the reader hunt through files to find which method actually runs. A function that takes a callable, or a class that holds another object, is easier to follow.</p>
+
+<h3>Protocols at real seams only</h3>
+<p>A <code>typing.Protocol</code> is great at a boundary with several genuine implementations (several model backends, a real and a fake transport for tests). A protocol with one implementation is a second copy of that class's signature to keep in sync.</p>
+
+<h3>Delete unused paths</h3>
+<p>Configuration flags nobody sets, fallback implementations nobody runs and compatibility shims for callers that are gone should all be deleted. Unused code still has readers.</p>
+
+<h3>A thin wrapper must add something</h3>
+<p>A class that only forwards calls to another class, or a function that only renames another function, is indirection without value. Call the real thing.</p>

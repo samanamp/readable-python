@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1. Principles · Readable Python</title>
+<meta name="description" content="Five ideas the rest of the booklet follows from.">
+<link rel="stylesheet" href="style.css">
+<script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
+</head>
+<body>
+<header class="site">
+  <a href="index.html">Readable Python</a>
+  <span><span class="crumb">Chapter 1 of 11</span> <button class="theme" type="button" onclick="toggleTheme()">theme</button></span>
+</header>
+<main>
+<h1><span class="num">1</span>Principles</h1>
+<p class="lede">Five ideas the rest of the booklet follows from.</p>
+<p>The rules in later chapters are applications of five ideas. When a rule doesn't fit your situation, fall back to these.</p>
+
+<h2>1. Optimize for the reader</h2>
+<p>A line of code is written once and read dozens of times: in review, while debugging at 2 a.m., by the next person who has to change it, and increasingly by coding agents that copy whatever patterns they find. Every choice that saves the writer a minute and costs each reader ten seconds is a bad trade.</p>
+<p>The practical test: <b>can a newcomer explain what this file does after reading it once, top to bottom?</b> If they need to jump around, keep four variables in their head, or read a comment to decode a line, the code isn't done.</p>
+
+<h2>2. Obvious beats clever</h2>
+<p>Prefer the boring construct. A <code>for</code> loop over a nested comprehension with a walrus. A plain class over a metaclass. A dict lookup over dynamic dispatch through <code>getattr</code>. A <code>match</code> statement over a hand-built visitor.</p>
+<p>Cleverness isn't banned; it has to pay for itself. A clever 5-line function that replaces 60 lines of boilerplate is worth it. A clever 5-line function that replaces 8 lines of obvious code isn't.</p>
+
+<h2>3. Code describes the present</h2>
+<p>The source tree describes how the system works <em>now</em>. How it got here belongs in git history, PR descriptions and design docs. Comments like "we used to do X, but Y happened" and dead code kept "just in case" make every reader process a past that no longer exists.</p>
+
+<h2>4. Build for the load you have</h2>
+<p>Design for today's requirements, with seams where you expect change, not machinery for every imaginable future. A batching scheduler for a system that only ever runs one session per process is complexity with no user. You can add it the week you need it, with real numbers in hand. See <a href="abstractions.html">chapter 9</a>.</p>
+
+<h2>5. Measure before you optimize</h2>
+<p>Performance structure (extra threads, extra CUDA streams, caches, pipelining) is the most expensive kind of complexity, because it's hard to read <em>and</em> hard to verify. Add it only when a profile shows the problem, and keep the profile's numbers in the PR description. If you can't show a timeline where the change helps, it doesn't go in.</p>
+
+<div class="rule">The reviewer's question for every PR: "Is this the simplest code that does what we need today, and could a newcomer follow it?"</div>
+<nav class="pager"><a href="index.html"><span>Previous</span>Cheat sheet &amp; contents</a><a class="next" href="shape.html"><span>Next</span>2. The shape of a system</a></nav>
+</main>
+<footer class="site">
+  <p>Written for humans first. Formatting is left to <code>ruff format</code>; this booklet is about structure.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<script>
+if (window.hljs) hljs.highlightAll();
+function toggleTheme() {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  d.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("theme", d.dataset.theme); } catch (e) {}
+}
+</script>
+</body>
+</html>

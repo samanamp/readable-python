@@ -1,0 +1,20 @@
+<p>The rules in later chapters are applications of five ideas. When a rule doesn't fit your situation, fall back to these.</p>
+
+<h2>1. Optimize for the reader</h2>
+<p>A line of code is written once and read dozens of times: in review, while debugging at 2 a.m., by the next person who has to change it, and increasingly by coding agents that copy whatever patterns they find. Every choice that saves the writer a minute and costs each reader ten seconds is a bad trade.</p>
+<p>The practical test: <b>can a newcomer explain what this file does after reading it once, top to bottom?</b> If they need to jump around, keep four variables in their head, or read a comment to decode a line, the code isn't done.</p>
+
+<h2>2. Obvious beats clever</h2>
+<p>Prefer the boring construct. A <code>for</code> loop over a nested comprehension with a walrus. A plain class over a metaclass. A dict lookup over dynamic dispatch through <code>getattr</code>. A <code>match</code> statement over a hand-built visitor.</p>
+<p>Cleverness isn't banned; it has to pay for itself. A clever 5-line function that replaces 60 lines of boilerplate is worth it. A clever 5-line function that replaces 8 lines of obvious code isn't.</p>
+
+<h2>3. Code describes the present</h2>
+<p>The source tree describes how the system works <em>now</em>. How it got here belongs in git history, PR descriptions and design docs. Comments like "we used to do X, but Y happened" and dead code kept "just in case" make every reader process a past that no longer exists.</p>
+
+<h2>4. Build for the load you have</h2>
+<p>Design for today's requirements, with seams where you expect change, not machinery for every imaginable future. A batching scheduler for a system that only ever runs one session per process is complexity with no user. You can add it the week you need it, with real numbers in hand. See <a href="abstractions.html">chapter 9</a>.</p>
+
+<h2>5. Measure before you optimize</h2>
+<p>Performance structure (extra threads, extra CUDA streams, caches, pipelining) is the most expensive kind of complexity, because it's hard to read <em>and</em> hard to verify. Add it only when a profile shows the problem, and keep the profile's numbers in the PR description. If you can't show a timeline where the change helps, it doesn't go in.</p>
+
+<div class="rule">The reviewer's question for every PR: "Is this the simplest code that does what we need today, and could a newcomer follow it?"</div>

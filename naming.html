@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5. Naming · Readable Python</title>
+<meta name="description" content="Names from the domain, used consistently.">
+<link rel="stylesheet" href="style.css">
+<script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
+</head>
+<body>
+<header class="site">
+  <a href="index.html">Readable Python</a>
+  <span><span class="crumb">Chapter 5 of 11</span> <button class="theme" type="button" onclick="toggleTheme()">theme</button></span>
+</header>
+<main>
+<h1><span class="num">5</span>Naming</h1>
+<p class="lede">Names from the domain, used consistently.</p>
+<div class="rule">Rule 8. Name things with domain words, and use the same word for the same thing everywhere.
+<span class="why">A codebase is a vocabulary. If "session", "conn", "client" and "stream" all mean the same thing, every reader has to learn four words for one idea, and will suspect they mean four different things.</span></div>
+
+<h2>Build a small glossary</h2>
+<p>Keep a short list of the core nouns of your system, with one-line definitions, in the README or at the top of the main module. For a serving system it might be:</p>
+<table>
+  <tr><th>Word</th><th>Means</th><th>Never call it</th></tr>
+  <tr><td><code>Session</code></td><td>one user's live connection to a model</td><td>client, conn, stream, job</td></tr>
+  <tr><td><code>Request</code></td><td>an ask to start a session, before it's admitted</td><td>session (it isn't one yet)</td></tr>
+  <tr><td><code>Batch</code></td><td>the inputs stepped together in one model call</td><td>cohort, group, bundle</td></tr>
+  <tr><td><code>Chunk</code></td><td>the output of one step for one session</td><td>result, frame, piece</td></tr>
+  <tr><td><code>Worker</code></td><td>a process that owns one GPU</td><td>replica, node, unit</td></tr>
+</table>
+<p>Then hold the line in review. New words need a reason.</p>
+
+<h2>Guidelines</h2>
+<h3>Functions are verbs, values are nouns</h3>
+<p><code>admit(request)</code>, <code>next_batch()</code>, <code>encode(frames)</code>. Booleans read as questions: <code>is_running</code>, <code>has_capacity</code>, <code>can_accept()</code>.</p>
+
+<h3>Say what it is, not what type it is</h3>
+<div class="pair">
+<figure class="before"><figcaption>Before</figcaption>
+<pre><code class="language-python">session_dict = {}
+id_list = []
+data = model.step(input_map)
+tmp = encode(data)</code></pre></figure>
+<figure class="after"><figcaption>After</figcaption>
+<pre><code class="language-python">sessions_by_id = {}
+pending_ids = []
+chunks = model.step(batch)
+packets = encode(chunks)</code></pre></figure>
+</div>
+
+<h3>Units in the name when they aren't obvious</h3>
+<p><code>timeout_s</code>, <code>bitrate_kbps</code>, <code>latency_ms</code>, <code>size_bytes</code>. This prevents a whole class of bugs that types don't catch.</p>
+
+<h3>Length matches scope</h3>
+<p>A loop index over three lines can be <code>i</code>. A module-level constant read in five files needs a full name. Avoid abbreviations except universal ones (<code>id</code>, <code>url</code>, <code>gpu</code>, <code>fps</code>).</p>
+
+<h3>Private means private</h3>
+<p>A leading underscore says "not part of this module's interface". Use it for that, and don't import <code>_names</code> from other modules. If another module needs it, it's public; drop the underscore.</p>
+
+<h3>No framework words for domain things</h3>
+<p><code>Manager</code>, <code>Handler</code>, <code>Processor</code> and <code>Helper</code> say almost nothing. Prefer what the thing actually does: <code>Scheduler</code>, <code>WeightsCache</code>, <code>FrameEncoder</code>.</p>
+<nav class="pager"><a href="functions.html"><span>Previous</span>4. Functions</a><a class="next" href="comments.html"><span>Next</span>6. Comments and docstrings</a></nav>
+</main>
+<footer class="site">
+  <p>Written for humans first. Formatting is left to <code>ruff format</code>; this booklet is about structure.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<script>
+if (window.hljs) hljs.highlightAll();
+function toggleTheme() {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  d.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("theme", d.dataset.theme); } catch (e) {}
+}
+</script>
+</body>
+</html>

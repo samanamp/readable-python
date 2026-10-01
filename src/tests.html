@@ -1,0 +1,59 @@
+<div class="rule">Rule 14. Tests describe behaviour, one idea per test.
+<span class="why">The test suite is the specification people actually read. A test named after a behaviour, checking one thing, tells a newcomer what the system promises, and tells them exactly what broke when it fails.</span></div>
+
+<h2>Name the behaviour, not the function</h2>
+<div class="pair">
+<figure class="before"><figcaption>Before</figcaption>
+<pre><code class="language-python">def test_scheduler():
+    s = Scheduler(FakeModel(capacity=1), fps=30)
+    assert s.join("a", {})
+    assert not s.join("b", {})
+    s.handle([Input("a", {"key": "w"})])
+    assert s.next_batch() == {"a": {"key": "w"}}
+    s.leave("a")
+    assert s.next_batch() == {}</code></pre></figure>
+<figure class="after"><figcaption>After</figcaption>
+<pre><code class="language-python">def test_join_is_rejected_when_model_is_full():
+    scheduler = make_scheduler(capacity=1)
+    scheduler.join("a", {})
+    assert scheduler.join("b", {}) is False
+
+
+def test_session_keeps_its_last_input_between_ticks():
+    scheduler = make_scheduler()
+    scheduler.join("a", {})
+    scheduler.handle([Input("a", {"key": "w"})])
+    scheduler.next_batch()
+    assert scheduler.next_batch() == {"a": {"key": "w"}}
+
+
+def test_leaving_session_is_not_stepped():
+    scheduler = make_scheduler()
+    scheduler.join("a", {})
+    scheduler.leave("a")
+    assert scheduler.next_batch() == {}</code></pre></figure>
+</div>
+<p>Read only the names on the right and you know three promises the scheduler makes. When one fails, the name says which promise broke.</p>
+
+<h2>Guidelines</h2>
+<h3>Arrange, act, assert</h3>
+<p>Each test sets up, does one thing and checks the result, in that order, with a blank line between the parts if it helps. No logic (loops, conditionals) in the test body. If you need a loop, use <code>pytest.mark.parametrize</code>.</p>
+
+<h3>Fakes over mocks</h3>
+<p>A small hand-written <code>FakeModel</code> with real behaviour (capacity, a deterministic output) gives readable tests that survive refactors. Heavy <code>mock.patch</code> setups test the implementation's call sequence, and break whenever it changes.</p>
+
+<h3>Test the promises that matter most</h3>
+<p>For a realtime serving loop those are usually:</p>
+<ul>
+  <li><b>Continuity:</b> a session with no new input still gets output every tick.</li>
+  <li><b>Isolation:</b> one session failing or leaving doesn't change another's output.</li>
+  <li><b>Boundaries:</b> input arriving mid-step applies at the next step, never halfway through one.</li>
+  <li><b>Backpressure:</b> a full model rejects new sessions cleanly instead of crashing.</li>
+  <li><b>Parity:</b> a batched step gives the same output as stepping each session alone.</li>
+</ul>
+
+<h3>Fast by default</h3>
+<p>The core logic should be testable on a laptop CPU in seconds, with no GPU, network or model weights. Mark the slow, GPU-only tests (<code>@pytest.mark.gpu</code>) and run them separately.</p>
+
+<h3>Helpers that build, not helpers that assert</h3>
+<p>A <code>make_scheduler(capacity=2)</code> factory keeps tests short. A custom <code>assert_scheduler_ok(s)</code> hides what's being checked; inline the assertions.</p>

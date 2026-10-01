@@ -1,0 +1,64 @@
+<div class="rule">Rule 9. Comments say why. The code says what. Git says when.
+<span class="why">A comment is only worth its upkeep when it tells the reader something the code can't: a reason, a constraint, a non-obvious consequence.</span></div>
+
+<h2>Four kinds of comment to delete</h2>
+<div class="pair">
+<figure class="before"><figcaption>Before</figcaption>
+<pre><code class="language-python"># Increment the retry counter.
+retries += 1
+
+# NOTE: previously we used a 60 Hz constant here, but that ignored
+# models declaring a different rate (see PR #1234 and the design doc
+# section 3.2, which also discusses the alternative we rejected).
+interval = 1.0 / fps
+
+# 2. Build the batch
+batch = {s.id: s.latest_input for s in sessions if s.running}
+
+# def old_step(self, batch):
+#     return self.model(batch)</code></pre></figure>
+<figure class="after"><figcaption>After</figcaption>
+<pre><code class="language-python">retries += 1
+
+interval = 1.0 / fps
+
+batch = self.next_batch()</code></pre></figure>
+</div>
+<ol>
+  <li><b>Narration</b> restates the code. Delete it.</li>
+  <li><b>History</b> ("previously…", "we used to…", "changed in PR…") belongs in the commit message. Delete it.</li>
+  <li><b>Section markers</b> ("# 2. Build the batch") are a sign the function should be split into named steps. Extract a method instead (<a href="shape.html">chapter 2</a>).</li>
+  <li><b>Commented-out code</b> is in git. Delete it.</li>
+</ol>
+
+<h2>Comments worth writing</h2>
+<pre><code class="language-python"># Sleep to a running deadline, not "interval - elapsed": the latter drifts
+# by one step's overhead per tick and the stream slowly falls behind real time.
+deadline += self.interval
+sleep_until(deadline)
+
+# The model reads `latest_input` without copying, so replace the dict
+# rather than updating it in place while a step may be running.
+session.latest_input = dict(value)
+
+# Must run on the thread that created the CUDA context (driver restriction).
+self.encoder.flush()</code></pre>
+<p>Each one explains a reason or a constraint that the next person would otherwise rediscover the hard way.</p>
+
+<h2>Docstrings</h2>
+<h3>Write them for contracts, not for every function</h3>
+<p>A public function or class whose behaviour isn't obvious from its name and signature gets a docstring. A private helper called <code>next_batch()</code> that returns <code>dict[str, dict]</code> doesn't need one.</p>
+
+<h3>Lead with one sentence</h3>
+<p>The first line says what it does, in the imperative or as a noun phrase. Then, only if needed: what can go wrong, what the caller must guarantee, what's surprising.</p>
+<pre><code class="language-python">def join(self, session_id: str, context: dict) -&gt; bool:
+    """Admit a session. Returns False if the model is at capacity.
+
+    Joining an id that's already present is a no-op and returns True.
+    """</code></pre>
+
+<h3>Plain text, not documents</h3>
+<p>No markdown bold, no headings, no tables, no links to design documents, no section references. A docstring is read in an editor tooltip; if it needs a table, the design belongs in a doc and the docstring should be one line.</p>
+
+<h3>TODOs carry an owner and a ticket</h3>
+<p><code># TODO(ticket-123): batch these calls once the API supports it.</code> A bare <code># TODO</code> is a wish nobody owns.</p>
