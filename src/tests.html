@@ -5,33 +5,38 @@
 <div class="pair">
 <figure class="before"><figcaption>Before</figcaption>
 <pre><code class="language-python">def test_scheduler():
-    s = Scheduler(FakeModel(capacity=1), fps=30)
-    assert s.join("a", {})
-    assert not s.join("b", {})
-    s.handle([Input("a", {"key": "w"})])
-    assert s.next_batch() == {"a": {"key": "w"}}
-    s.leave("a")
-    assert s.next_batch() == {}</code></pre></figure>
+    s = Scheduler(FakeModel(), FakeTokenizer(), max_batch=1)
+    s.waiting.extend([req("a"), req("b")])
+    s.admit_waiting()
+    assert list(s.running) == ["a"]
+    s.advance()
+    assert s.running["a"].generated == [FakeModel.TOKEN]
+    s.cancel("a")
+    s.admit_waiting()
+    assert list(s.running) == ["b"]</code></pre></figure>
 <figure class="after"><figcaption>After</figcaption>
-<pre><code class="language-python">def test_join_is_rejected_when_model_is_full():
-    scheduler = make_scheduler(capacity=1)
-    scheduler.join("a", {})
-    assert scheduler.join("b", {}) is False
+<pre><code class="language-python">def test_request_waits_while_the_batch_is_full():
+    scheduler = make_scheduler(max_batch=1)
+    scheduler.waiting.extend([req("a"), req("b")])
+    scheduler.admit_waiting()
+    assert list(scheduler.running) == ["a"]
 
 
-def test_session_keeps_its_last_input_between_ticks():
+def test_each_step_adds_one_token_per_running_sequence():
     scheduler = make_scheduler()
-    scheduler.join("a", {})
-    scheduler.handle([Input("a", {"key": "w"})])
-    scheduler.next_batch()
-    assert scheduler.next_batch() == {"a": {"key": "w"}}
+    scheduler.waiting.extend([req("a"), req("b")])
+    scheduler.admit_waiting()
+    scheduler.advance()
+    assert [len(s.generated) for s in scheduler.running.values()] == [1, 1]
 
 
-def test_leaving_session_is_not_stepped():
-    scheduler = make_scheduler()
-    scheduler.join("a", {})
-    scheduler.leave("a")
-    assert scheduler.next_batch() == {}</code></pre></figure>
+def test_cancelling_a_request_frees_its_slot():
+    scheduler = make_scheduler(max_batch=1)
+    scheduler.waiting.extend([req("a"), req("b")])
+    scheduler.admit_waiting()
+    scheduler.cancel("a")
+    scheduler.admit_waiting()
+    assert list(scheduler.running) == ["b"]</code></pre></figure>
 </div>
 <p>Read only the names on the right and you know three promises the scheduler makes. When one fails, the name says which promise broke.</p>
 
@@ -40,20 +45,20 @@ def test_leaving_session_is_not_stepped():
 <p>Each test sets up, does one thing and checks the result, in that order, with a blank line between the parts if it helps. No logic (loops, conditionals) in the test body. If you need a loop, use <code>pytest.mark.parametrize</code>.</p>
 
 <h3>Fakes over mocks</h3>
-<p>A small hand-written <code>FakeModel</code> with real behaviour (capacity, a deterministic output) gives readable tests that survive refactors. Heavy <code>mock.patch</code> setups test the implementation's call sequence, and break whenever it changes.</p>
+<p>A small hand-written <code>FakeModel</code> with real behaviour (it returns a fixed token, or echoes the prompt) gives readable tests that survive refactors. Heavy <code>mock.patch</code> setups test the implementation's call sequence, and break whenever it changes.</p>
 
 <h3>Test the promises that matter most</h3>
-<p>For a realtime serving loop those are usually:</p>
+<p>For a batching generation server those are usually:</p>
 <ul>
-  <li><b>Continuity:</b> a session with no new input still gets output every tick.</li>
-  <li><b>Isolation:</b> one session failing or leaving doesn't change another's output.</li>
-  <li><b>Boundaries:</b> input arriving mid-step applies at the next step, never halfway through one.</li>
-  <li><b>Backpressure:</b> a full model rejects new sessions cleanly instead of crashing.</li>
-  <li><b>Parity:</b> a batched step gives the same output as stepping each session alone.</li>
+  <li><b>Progress:</b> every running sequence gains exactly one token per step.</li>
+  <li><b>Order:</b> waiting requests are admitted in arrival order.</li>
+  <li><b>Limits:</b> a sequence stops at end-of-sequence or at <code>max_new_tokens</code>, whichever comes first.</li>
+  <li><b>Backpressure:</b> a full queue rejects new requests cleanly instead of growing without bound.</li>
+  <li><b>Batch invariance:</b> a request's output doesn't depend on which other requests shared its batch (with a deterministic fake model).</li>
 </ul>
 
 <h3>Fast by default</h3>
 <p>The core logic should be testable on a laptop CPU in seconds, with no GPU, network or model weights. Mark the slow, GPU-only tests (<code>@pytest.mark.gpu</code>) and run them separately.</p>
 
 <h3>Helpers that build, not helpers that assert</h3>
-<p>A <code>make_scheduler(capacity=2)</code> factory keeps tests short. A custom <code>assert_scheduler_ok(s)</code> hides what's being checked; inline the assertions.</p>
+<p>A <code>make_scheduler(max_batch=2)</code> factory keeps tests short. A custom <code>assert_scheduler_ok(s)</code> hides what's being checked; inline the assertions.</p>

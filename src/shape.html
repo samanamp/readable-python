@@ -1,106 +1,115 @@
 <p>Good serving code has a recognizable shape. Open the scheduler in SGLang and the core loop is roughly: receive requests, process them, pick the next batch, run it, process the results. vLLM's engine step is similar: schedule, execute the model, update from the output. Each step is a method with a name that tells you what it does. Read the loop and you know the system; open a method only when you care about its details.</p>
 
+<p>The examples in this booklet use one small system throughout: a text-generation server with continuous batching. Requests wait in a queue, get admitted into a fixed number of batch slots, gain one token per step, and free their slot when they finish.</p>
+
 <div class="rule">Rule 2. The top-level loop is a list of named steps.
 <span class="why">A reader should understand the whole system from one screen, then drill down only where they need to.</span></div>
 
 <div class="rule">Rule 3. One class, one job. Data crosses boundaries as dataclasses.
-<span class="why">"Scheduler", "Executor", "Session" each answer one question. Typed data at the seams tells a reader exactly what one part hands to the next.</span></div>
+<span class="why">"Scheduler", "Sequence", "SamplingParams" each answer one question. Typed data at the seams tells a reader exactly what one part hands to the next.</span></div>
 
 <h2>Before</h2>
-<p>A serving loop written as one long function. Everything works, and it's hard to read: dispatch, bookkeeping, error handling and pacing are interleaved, and the steps of the loop only exist as comments.</p>
+<p>The generation loop written as one long function. It works, and it's hard to read: admission, bookkeeping, error handling and the model call are interleaved, and the steps of the loop only exist as comments.</p>
 
 <div class="pair"><figure class="before"><figcaption>Before</figcaption>
-<pre><code class="language-python">async def serve(model, inbox, outbox, stop, tick_s=None):
-    if tick_s is None:
-        tick_s = 1.0 / (model.info().fps or 30.0)
-    inputs = {}      # session_id -&gt; latest input
-    contexts = {}    # session_id -&gt; context, kept for resets
-    running = set()  # session ids to step this tick
-    while not stop.is_set():
-        t0 = time.perf_counter()
-        # 1. handle messages
-        for msg in inbox.drain():
-            if msg["type"] == "join":
-                if await _try_join(model, msg["id"], msg["ctx"], inputs, contexts):
-                    running.add(msg["id"])
-            elif msg["type"] == "leave":
-                model.leave(msg["id"])
-                inputs.pop(msg["id"], None)
-                contexts.pop(msg["id"], None)
-                running.discard(msg["id"])
-            elif msg["type"] == "input" and msg["id"] in inputs:
-                inputs[msg["id"]] = msg["value"]
-        # 2. step everyone who is running
-        batch = {k: v for k, v in inputs.items() if k in running}
-        if batch:
-            try:
-                for out in model.step(batch):
-                    outbox.put(out)
-            except Exception:
-                log.exception("step failed, skipping tick")
-        # 3. sleep until next tick
-        await asyncio.sleep(max(0, tick_s - (time.perf_counter() - t0)))</code></pre></figure></div>
+<pre><code class="language-python">def serve_forever(model, tokenizer, request_q, result_q, max_batch=8):
+    waiting = []
+    prompts = {}     # request id -&gt; prompt token ids
+    generated = {}   # request id -&gt; generated token ids
+    budgets = {}     # request id -&gt; max new tokens
+    while True:
+        # 1. pull new requests
+        while not request_q.empty():
+            waiting.append(request_q.get())
+        # 2. admit into free slots
+        while waiting and len(generated) &lt; max_batch:
+            _admit(waiting.pop(0), tokenizer, prompts, generated, budgets)
+        if not generated:
+            time.sleep(0.005)
+            continue
+        # 3. one decode step for every running request
+        try:
+            ids = list(generated)
+            next_tokens = model.decode([prompts[i] + generated[i] for i in ids])
+        except Exception:
+            log.exception("decode failed")
+            continue
+        # 4. append tokens, retire finished requests
+        for i, tok in zip(ids, next_tokens):
+            generated[i].append(tok)
+            if tok == tokenizer.eos_id or len(generated[i]) &gt;= budgets[i]:
+                result_q.put((i, tokenizer.decode(generated.pop(i))))
+                prompts.pop(i)
+                budgets.pop(i)</code></pre></figure></div>
 
 <p>What makes it hard:</p>
 <ul>
   <li>The shape of the loop exists only in the numbered comments.</li>
-  <li>Session state is spread across three containers that every branch must update together.</li>
-  <li>Messages are untyped dicts, so you learn their fields by reading every branch.</li>
-  <li>The helper <code>_try_join</code> takes the caller's dicts and changes them (see <a href="functions.html">chapter 4</a>).</li>
+  <li>Each request's state is spread across three dicts that every branch must update together.</li>
+  <li>Requests are untyped tuples and dicts, so you learn their fields by reading every line.</li>
+  <li>The helper <code>_admit</code> takes the caller's dicts and changes them (see <a href="functions.html">chapter 4</a>).</li>
 </ul>
 
 <h2>After</h2>
 <div class="pair"><figure class="after"><figcaption>After</figcaption>
 <pre><code class="language-python">@dataclass
-class Session:
-    id: str
-    context: dict
-    latest_input: dict = field(default_factory=dict)
-    running: bool = True
+class Sequence:
+    request_id: str
+    prompt: list[int]
+    max_new_tokens: int
+    generated: list[int] = field(default_factory=list)
+
+    def is_finished(self, eos_id: int) -&gt; bool:
+        return bool(self.generated) and (
+            self.generated[-1] == eos_id or len(self.generated) &gt;= self.max_new_tokens
+        )
 
 
 class Scheduler:
-    """Owns the sessions and drives the model once per tick."""
+    """Admits requests into a fixed number of slots and advances them one token per step."""
 
-    def __init__(self, model: Model, fps: float):
-        self.model = model
-        self.interval = 1.0 / fps
-        self.sessions: dict[str, Session] = {}
+    def __init__(self, model: Model, tokenizer: Tokenizer, max_batch: int):
+        self.model, self.tokenizer, self.max_batch = model, tokenizer, max_batch
+        self.waiting: deque[Request] = deque()
+        self.running: dict[str, Sequence] = {}
 
-    def run(self, inbox: Inbox, outbox: Outbox, stop: Event) -&gt; None:
-        deadline = time.monotonic()
+    def run(self, requests: RequestQueue, results: ResultQueue, stop: Event) -&gt; None:
         while not stop.is_set():
-            self.handle(inbox.drain())
-            batch = self.next_batch()
-            if batch:
-                outbox.put_all(self.model.step(batch))
-            deadline += self.interval
-            sleep_until(deadline)
+            self.waiting.extend(requests.take_all())
+            self.admit_waiting()
+            if self.running:
+                self.advance()
+                results.put_all(self.retire_finished())
+            else:
+                requests.wait(timeout=0.005)
 
-    def handle(self, messages: list[Message]) -&gt; None:
-        for msg in messages:
-            match msg:
-                case Join(session_id, context):
-                    self.join(session_id, context)
-                case Leave(session_id):
-                    self.leave(session_id)
-                case Input(session_id, value) if session_id in self.sessions:
-                    self.sessions[session_id].latest_input = value
+    def admit_waiting(self) -&gt; None:
+        while self.waiting and len(self.running) &lt; self.max_batch:
+            request = self.waiting.popleft()
+            self.running[request.id] = Sequence(request.id, request.prompt, request.max_new_tokens)
 
-    def next_batch(self) -&gt; dict[str, dict]:
-        return {s.id: s.latest_input for s in self.sessions.values() if s.running}</code></pre></figure></div>
+    def advance(self) -&gt; None:
+        batch = list(self.running.values())
+        for seq, token in zip(batch, self.model.decode(batch)):
+            seq.generated.append(token)
 
-<p>The loop in <code>run</code> now reads as its own description: handle messages, build the batch, step, wait. Session state has one home. Messages are dataclasses (<code>Join</code>, <code>Leave</code>, <code>Input</code>), so <code>match</code> both dispatches and unpacks them. The pacing also became correct in passing: a running <code>deadline</code> doesn't drift the way <code>sleep(interval - elapsed)</code> does.</p>
+    def retire_finished(self) -&gt; list[Result]:
+        done = [s for s in self.running.values() if s.is_finished(self.tokenizer.eos_id)]
+        for seq in done:
+            del self.running[seq.request_id]
+        return [Result(s.request_id, self.tokenizer.decode(s.generated)) for s in done]</code></pre></figure></div>
+
+<p>The loop in <code>run</code> now reads as its own description: take new requests, admit what fits, advance one step, return what finished. Each request's state lives in one <code>Sequence</code>. The rule for "finished" lives in one method, next to the data it reads. Error handling moved out of the loop on purpose; <a href="errors.html">chapter 7</a> covers where it went.</p>
 
 <h2>Guidelines</h2>
 <h3>Name the steps after what they mean, not how they work</h3>
-<p><code>next_batch()</code>, not <code>filter_running_inputs()</code>. A reader of the loop cares about the role of the step; the method body shows the mechanics.</p>
+<p><code>retire_finished()</code>, not <code>pop_eos_or_budget()</code>. A reader of the loop cares about the role of the step; the method body shows the mechanics.</p>
 
 <h3>Keep orchestration and work apart</h3>
 <p>The loop decides <em>what</em> happens and in which order. It shouldn't also contain the details of <em>how</em>. If a step needs more than a couple of lines inline, it's a method.</p>
 
 <h3>Typed data at every seam</h3>
-<p>Between the scheduler and the model, between the transport and the scheduler, between processes: use a <code>@dataclass</code> (or a protobuf/pydantic model at process boundaries). Avoid passing bare dicts with conventional keys. A dataclass is documentation the type checker enforces.</p>
+<p>Between the HTTP layer and the scheduler, between the scheduler and the model, between processes: use a <code>@dataclass</code> (or a protobuf or pydantic model at process boundaries). Avoid passing bare dicts and tuples with conventional positions. A dataclass is documentation the type checker enforces.</p>
 
 <h3>One file per concept, not per layer</h3>
 <p>A file called <code>scheduler.py</code> holding the scheduler is easy to find. A file called <code>utils.py</code> holding half of it isn't. Avoid <code>utils</code>, <code>helpers</code>, <code>common</code> and <code>misc</code> as homes for logic.</p>

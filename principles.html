@@ -36,7 +36,7 @@
 <p>The source tree describes how the system works <em>now</em>. How it got here belongs in git history, PR descriptions and design docs. Comments like "we used to do X, but Y happened" and dead code kept "just in case" make every reader process a past that no longer exists.</p>
 
 <h2>4. Build for the load you have</h2>
-<p>Design for today's requirements, with seams where you expect change, not machinery for every imaginable future. A batching scheduler for a system that only ever runs one session per process is complexity with no user. You can add it the week you need it, with real numbers in hand. See <a href="abstractions.html">chapter 9</a>.</p>
+<p>Design for today's requirements, with seams where you expect change, not machinery for every imaginable future. A plugin registry for a tool with one plugin, or a priority queue for a server that has never had a second priority class, is complexity with no user. You can add it the week you need it, with real numbers in hand. See <a href="abstractions.html">chapter 9</a>.</p>
 
 <h2>5. Measure before you optimize</h2>
 <p>Performance structure (extra threads, extra CUDA streams, caches, pipelining) is the most expensive kind of complexity, because it's hard to read <em>and</em> hard to verify. Add it only when a profile shows the problem, and keep the profile's numbers in the PR description. If you can't show a timeline where the change helps, it doesn't go in.</p>

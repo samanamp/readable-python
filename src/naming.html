@@ -1,44 +1,44 @@
 <div class="rule">Rule 8. Name things with domain words, and use the same word for the same thing everywhere.
-<span class="why">A codebase is a vocabulary. If "session", "conn", "client" and "stream" all mean the same thing, every reader has to learn four words for one idea, and will suspect they mean four different things.</span></div>
+<span class="why">A codebase is a vocabulary. If "request", "job", "query" and "generation" all mean the same thing, every reader has to learn four words for one idea, and will suspect they mean four different things.</span></div>
 
 <h2>Build a small glossary</h2>
-<p>Keep a short list of the core nouns of your system, with one-line definitions, in the README or at the top of the main module. For a serving system it might be:</p>
+<p>Keep a short list of the core nouns of your system, with one-line definitions, in the README or at the top of the main module. For a text-generation server it might be:</p>
 <table>
   <tr><th>Word</th><th>Means</th><th>Never call it</th></tr>
-  <tr><td><code>Session</code></td><td>one user's live connection to a model</td><td>client, conn, stream, job</td></tr>
-  <tr><td><code>Request</code></td><td>an ask to start a session, before it's admitted</td><td>session (it isn't one yet)</td></tr>
-  <tr><td><code>Batch</code></td><td>the inputs stepped together in one model call</td><td>cohort, group, bundle</td></tr>
-  <tr><td><code>Chunk</code></td><td>the output of one step for one session</td><td>result, frame, piece</td></tr>
-  <tr><td><code>Worker</code></td><td>a process that owns one GPU</td><td>replica, node, unit</td></tr>
+  <tr><td><code>Request</code></td><td>what a client submitted: a prompt and its limits</td><td>job, query, task</td></tr>
+  <tr><td><code>Sequence</code></td><td>an admitted request while it's being generated</td><td>request (it has state now), generation, stream</td></tr>
+  <tr><td><code>Batch</code></td><td>the sequences run together in one forward pass</td><td>group, bundle, micro-batch</td></tr>
+  <tr><td><code>Step</code></td><td>one forward pass that adds one token to each sequence</td><td>iteration, tick, round</td></tr>
+  <tr><td><code>Worker</code></td><td>a process that owns one GPU</td><td>replica, node, executor</td></tr>
 </table>
 <p>Then hold the line in review. New words need a reason.</p>
 
 <h2>Guidelines</h2>
 <h3>Functions are verbs, values are nouns</h3>
-<p><code>admit(request)</code>, <code>next_batch()</code>, <code>encode(frames)</code>. Booleans read as questions: <code>is_running</code>, <code>has_capacity</code>, <code>can_accept()</code>.</p>
+<p><code>admit(request)</code>, <code>retire_finished()</code>, <code>detokenize(tokens)</code>. Booleans read as questions: <code>is_finished</code>, <code>has_free_slot</code>, <code>can_accept()</code>.</p>
 
 <h3>Say what it is, not what type it is</h3>
 <div class="pair">
 <figure class="before"><figcaption>Before</figcaption>
-<pre><code class="language-python">session_dict = {}
+<pre><code class="language-python">seq_dict = {}
 id_list = []
-data = model.step(input_map)
-tmp = encode(data)</code></pre></figure>
+data = model.forward(input_map)
+tmp = tokenizer.decode(data)</code></pre></figure>
 <figure class="after"><figcaption>After</figcaption>
-<pre><code class="language-python">sessions_by_id = {}
-pending_ids = []
-chunks = model.step(batch)
-packets = encode(chunks)</code></pre></figure>
+<pre><code class="language-python">running_by_id = {}
+waiting_ids = []
+logits = model.forward(batch)
+text = tokenizer.decode(token_ids)</code></pre></figure>
 </div>
 
 <h3>Units in the name when they aren't obvious</h3>
-<p><code>timeout_s</code>, <code>bitrate_kbps</code>, <code>latency_ms</code>, <code>size_bytes</code>. This prevents a whole class of bugs that types don't catch.</p>
+<p><code>timeout_s</code>, <code>kv_cache_bytes</code>, <code>latency_ms</code>, <code>max_new_tokens</code>. This prevents a whole class of bugs that types don't catch.</p>
 
 <h3>Length matches scope</h3>
-<p>A loop index over three lines can be <code>i</code>. A module-level constant read in five files needs a full name. Avoid abbreviations except universal ones (<code>id</code>, <code>url</code>, <code>gpu</code>, <code>fps</code>).</p>
+<p>A loop index over three lines can be <code>i</code>. A module-level constant read in five files needs a full name. Avoid abbreviations except universal ones (<code>id</code>, <code>url</code>, <code>gpu</code>, <code>kv</code>).</p>
 
 <h3>Private means private</h3>
 <p>A leading underscore says "not part of this module's interface". Use it for that, and don't import <code>_names</code> from other modules. If another module needs it, it's public; drop the underscore.</p>
 
 <h3>No framework words for domain things</h3>
-<p><code>Manager</code>, <code>Handler</code>, <code>Processor</code> and <code>Helper</code> say almost nothing. Prefer what the thing actually does: <code>Scheduler</code>, <code>WeightsCache</code>, <code>FrameEncoder</code>.</p>
+<p><code>Manager</code>, <code>Handler</code>, <code>Processor</code> and <code>Helper</code> say almost nothing. Prefer what the thing actually does: <code>Scheduler</code>, <code>BlockAllocator</code>, <code>Detokenizer</code>.</p>

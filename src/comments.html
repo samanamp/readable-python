@@ -7,20 +7,20 @@
 <pre><code class="language-python"># Increment the retry counter.
 retries += 1
 
-# NOTE: previously we used a 60 Hz constant here, but that ignored
-# models declaring a different rate (see PR #1234 and the design doc
-# section 3.2, which also discusses the alternative we rejected).
-interval = 1.0 / fps
+# NOTE: previously the batch was capped at 32, but that starved long
+# prompts (see PR #1234 and section 3.2 of the design doc, which also
+# discusses the alternative we rejected).
+max_batch = config.max_batch
 
 # 2. Build the batch
-batch = {s.id: s.latest_input for s in sessions if s.running}
+batch = [s for s in self.running.values() if not s.paused]
 
-# def old_step(self, batch):
+# def old_decode(self, batch):
 #     return self.model(batch)</code></pre></figure>
 <figure class="after"><figcaption>After</figcaption>
 <pre><code class="language-python">retries += 1
 
-interval = 1.0 / fps
+max_batch = config.max_batch
 
 batch = self.next_batch()</code></pre></figure>
 </div>
@@ -32,33 +32,32 @@ batch = self.next_batch()</code></pre></figure>
 </ol>
 
 <h2>Comments worth writing</h2>
-<pre><code class="language-python"># Sleep to a running deadline, not "interval - elapsed": the latter drifts
-# by one step's overhead per tick and the stream slowly falls behind real time.
-deadline += self.interval
-sleep_until(deadline)
+<pre><code class="language-python"># Sort by prompt length so padding stays small: the attention kernel has no
+# support for ragged batches, and padding costs real compute.
+batch.sort(key=lambda s: len(s.prompt))
 
-# The model reads `latest_input` without copying, so replace the dict
-# rather than updating it in place while a step may be running.
-session.latest_input = dict(value)
+# decode() returns a view into the tokenizer's reusable buffer, so copy it
+# before the next call overwrites it.
+text = str(tokenizer.decode(seq.generated))
 
 # Must run on the thread that created the CUDA context (driver restriction).
-self.encoder.flush()</code></pre>
+self.graph.replay()</code></pre>
 <p>Each one explains a reason or a constraint that the next person would otherwise rediscover the hard way.</p>
 
 <h2>Docstrings</h2>
 <h3>Write them for contracts, not for every function</h3>
-<p>A public function or class whose behaviour isn't obvious from its name and signature gets a docstring. A private helper called <code>next_batch()</code> that returns <code>dict[str, dict]</code> doesn't need one.</p>
+<p>A public function or class whose behaviour isn't obvious from its name and signature gets a docstring. A private helper called <code>next_batch()</code> that returns <code>list[Sequence]</code> doesn't need one.</p>
 
 <h3>Lead with one sentence</h3>
 <p>The first line says what it does, in the imperative or as a noun phrase. Then, only if needed: what can go wrong, what the caller must guarantee, what's surprising.</p>
-<pre><code class="language-python">def join(self, session_id: str, context: dict) -&gt; bool:
-    """Admit a session. Returns False if the model is at capacity.
+<pre><code class="language-python">def submit(self, request: Request) -&gt; bool:
+    """Queue a request for generation. Returns False if the queue is full.
 
-    Joining an id that's already present is a no-op and returns True.
+    Submitting an id that is already queued or running is a no-op and returns True.
     """</code></pre>
 
 <h3>Plain text, not documents</h3>
 <p>No markdown bold, no headings, no tables, no links to design documents, no section references. A docstring is read in an editor tooltip; if it needs a table, the design belongs in a doc and the docstring should be one line.</p>
 
 <h3>TODOs carry an owner and a ticket</h3>
-<p><code># TODO(ticket-123): batch these calls once the API supports it.</code> A bare <code># TODO</code> is a wish nobody owns.</p>
+<p><code># TODO(ticket-123): free KV blocks eagerly once preemption lands.</code> A bare <code># TODO</code> is a wish nobody owns.</p>

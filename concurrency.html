@@ -26,63 +26,66 @@
 
 <div class="rule"><span class="rp">RP11</span><p class="stmt">Each piece of mutable state belongs to one thread. Hand off with queues.</p><p class="why">If only one thread ever touches the scheduler's state, it needs no locks and can be read like sequential code. Threads talk by passing immutable messages.</p></div>
 
-<div class="rule"><span class="rp">RP12</span><p class="stmt">Only overlap work that uses different hardware, and prove it with a profile.</p><p class="why">Concurrency helps when two things can really run at once: CPU next to GPU, a copy engine next to the SMs, a hardware encoder next to compute. Two compute kernels fighting over the same saturated SMs gain nothing and add jitter.</p></div>
+<div class="rule"><span class="rp">RP12</span><p class="stmt">Only overlap work that uses different hardware, and prove it with a profile.</p><p class="why">Concurrency helps when two things can really run at once: CPU next to GPU, a copy engine next to the SMs. Two compute kernels fighting over the same saturated SMs gain nothing and add jitter.</p></div>
 
-<h2>The basic shape for a serving process</h2>
-<p>Two actors, one queue in each direction:</p>
-<ul>
-  <li><b>The I/O side</b> (an asyncio event loop) handles the network: HTTP, WebRTC, sockets. It never blocks and never touches model state. It puts typed messages on the <code>inbox</code> and takes results off the <code>outbox</code>.</li>
-  <li><b>The model side</b> (one dedicated thread) owns the scheduler and the GPU. It runs a plain synchronous loop: drain the inbox, step, put results, wait for the next tick.</li>
-</ul>
-<pre><code class="language-python">def start(model: Model, fps: float) -&gt; tuple[Inbox, Outbox, Event]:
-    inbox, outbox, stop = Inbox(), Outbox(), Event()
-    scheduler = Scheduler(model, fps)
-    threading.Thread(
-        target=scheduler.run, args=(inbox, outbox, stop), name="model", daemon=True
-    ).start()
-    return inbox, outbox, stop</code></pre>
-<p>The scheduler's code contains no <code>async</code>, no locks and no executor plumbing. The only thread-safety lives in two queue classes, which are easy to test on their own.</p>
-
-<h2>Avoid: wrapping each call in async plumbing</h2>
+<h2>Shared state behind a lock</h2>
+<p>The usual first version of a generation server: HTTP handler threads and a generation loop share one dict, and a global lock keeps them from colliding.</p>
 <div class="pair">
 <figure class="before"><figcaption>Before</figcaption>
-<pre><code class="language-python">async def serve(model, inbox, outbox, stop):
-    loop = asyncio.get_running_loop()
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        def on_model_thread(fn, *args, **kwargs):
-            return loop.run_in_executor(pool, partial(fn, *args, **kwargs))
-        while not stop.is_set():
-            for msg in inbox.drain():
-                await on_model_thread(model.join, msg.session_id, msg.context)
-            chunks = await on_model_thread(model.step, batch)
-            ...</code></pre></figure>
+<pre><code class="language-python">SEQUENCES: dict[str, dict] = {}
+LOCK = threading.Lock()
+
+def handle_generate(body: dict) -&gt; str:          # runs on many HTTP threads
+    with LOCK:
+        SEQUENCES[body["id"]] = {"prompt": body["prompt"], "out": [], "done": False}
+    while True:
+        with LOCK:
+            if SEQUENCES[body["id"]]["done"]:
+                return "".join(SEQUENCES.pop(body["id"])["out"])
+        time.sleep(0.01)
+
+def generation_loop(model):                       # runs on one background thread
+    while True:
+        with LOCK:
+            batch = [s for s in SEQUENCES.values() if not s["done"]]
+            step(model, batch)                    # GPU call while holding the lock</code></pre></figure>
 <figure class="after"><figcaption>After</figcaption>
-<pre><code class="language-python"># The whole loop runs on the model thread (see start()).
-def run(self, inbox, outbox, stop):
-    while not stop.is_set():
-        self.handle(inbox.drain())
-        batch = self.next_batch()
-        if batch:
-            outbox.put_all(self.model.step(batch))
-        ...</code></pre></figure>
+<pre><code class="language-python">def start(model: Model, tokenizer: Tokenizer, max_batch: int) -&gt; Server:
+    requests, results, stop = RequestQueue(), ResultQueue(), Event()
+    scheduler = Scheduler(model, tokenizer, max_batch)
+    threading.Thread(
+        target=scheduler.run, args=(requests, results, stop), name="scheduler", daemon=True
+    ).start()
+    return Server(requests, results, stop)
+
+async def handle_generate(server: Server, body: dict) -&gt; str:
+    request = Request.parse(body, server.tokenizer)
+    server.requests.put(request)
+    return (await server.results.wait_for(request.id)).text</code></pre></figure>
 </div>
-<p>The "before" loop lives on the event loop and hops every single call over to a worker thread. It works, but each line now carries scheduling noise, and the reader has to reason about two threads at every step. Move the whole loop to the thread instead.</p>
+<p>In the "before" version, every reader has to check that every access holds the lock. The GPU call holds it too, so new requests block for a whole step, and the handlers busy-wait. In the "after" version, the scheduler thread is the only owner of sequence state. Its code (<a href="shape.html">chapter 2</a>) contains no locks at all. Handlers only put a request on one queue and await a result from the other, and the only thread-safety lives in those two queue classes, which are easy to test on their own.</p>
+
+<h2>The basic shape for a serving process</h2>
+<ul>
+  <li><b>The I/O side</b> (an asyncio event loop) handles the network. It never blocks and never touches model state. It parses requests at the boundary and talks to the scheduler only through queues.</li>
+  <li><b>The model side</b> (one dedicated thread) owns the scheduler and the GPU. It runs a plain synchronous loop: take requests, admit, step, return results.</li>
+</ul>
 
 <h2>GPU streams</h2>
-<p>A CUDA stream is an ordering queue, not extra compute. Work on a second stream runs concurrently only when the first leaves SMs idle. A well-written denoising or prefill step (large fused kernels, ideally captured in a CUDA graph) keeps every SM busy, so:</p>
+<p>A CUDA stream is an ordering queue, not extra compute. Work on a second stream runs concurrently only when the first leaves SMs idle. A well-written forward pass (large fused kernels, ideally captured in a CUDA graph) keeps every SM busy, so:</p>
 <ul>
-  <li><b>Don't</b> put compute stages (decode, a second model, an encoder) on side streams expecting overlap. They only fill gaps, and they can delay the critical path and compete for cache and memory bandwidth.</li>
-  <li><b>Don't</b> pipeline compute stages (decode step N−1 while denoising step N) unless a timeline shows idle SMs. If the GPU is saturated, pipelining adds a step of latency and saves nothing.</li>
-  <li><b>Do</b> overlap work that uses <em>other</em> hardware: host↔device copies (copy engines), hardware video encode (NVENC), and CPU-side scheduling of the next step while the GPU runs this one. That last one is what SGLang's "overlap scheduler" does.</li>
+  <li><b>Don't</b> put compute stages (sampling, a draft model, a vision encoder) on side streams expecting overlap. They only fill gaps, and they can delay the critical path and compete for cache and memory bandwidth.</li>
+  <li><b>Don't</b> pipeline compute stages (post-processing batch N−1 while the forward pass of batch N runs) unless a timeline shows idle SMs. If the GPU is saturated, pipelining adds a step of latency and saves nothing.</li>
+  <li><b>Do</b> overlap work that uses <em>other</em> hardware: host↔device copies on the copy engines, and CPU-side scheduling of the next step while the GPU runs this one. The latter is what SGLang's "overlap scheduler" does.</li>
   <li><b>Do</b> use CUDA graphs and fused kernels to remove launch gaps. That's usually worth more than any amount of stream juggling.</li>
 </ul>
 
 <h2>Guidelines</h2>
 <h3>Never block the event loop</h3>
-<p>Anything that takes more than about a millisecond (model calls, file I/O, big serialization) doesn't run on the event loop. Send it to the model thread, or to a dedicated thread for that kind of work.</p>
+<p>Anything that takes more than about a millisecond (model calls, tokenizing a long prompt, big serialization) doesn't run on the event loop. Send it to the scheduler thread, or to a dedicated thread for that kind of work.</p>
 
 <h3>Threads have names and owners</h3>
-<p>Every thread you start is named (<code>name="model"</code>), and it's obvious from the code which object it runs and what state it owns. No anonymous pools for long-lived work.</p>
+<p>Every thread you start is named (<code>name="scheduler"</code>), and it's obvious from the code which object it runs and what state it owns. No anonymous pools for long-lived work.</p>
 
 <h3>Stop with an event, not cancellation</h3>
 <p>A blocking GPU call can't be interrupted. Pass a <code>threading.Event</code> and check it at the top of the loop, so shutdown finishes the current step and exits cleanly.</p>

@@ -4,50 +4,52 @@
 <h2>The blanket catch</h2>
 <div class="pair">
 <figure class="before"><figcaption>Before</figcaption>
-<pre><code class="language-python">while running:
+<pre><code class="language-python">while True:
     try:
-        chunks = model.step(batch)
-        for chunk in chunks:
-            outbox.put(chunk)
+        tokens = model.decode(batch)
+        for seq, token in zip(batch, tokens):
+            seq.generated.append(token)
     except Exception:
-        log.exception("step failed; skipping tick")</code></pre></figure>
+        log.exception("decode failed; retrying")</code></pre></figure>
 <figure class="after"><figcaption>After</figcaption>
-<pre><code class="language-python">while running:
+<pre><code class="language-python">while True:
     try:
-        chunks = model.step(batch)
-    except SessionError as err:
-        self.end_session(err.session_id, reason=str(err))
+        tokens = model.decode(batch)
+    except SequenceError as err:
+        self.abort(err.request_id, reason=str(err))
         continue
-    outbox.put_all(chunks)</code></pre></figure>
+    for seq, token in zip(batch, tokens):
+        seq.generated.append(token)</code></pre></figure>
 </div>
-<p>The "before" loop survives everything, including a CUDA out-of-memory error, a corrupted model or a bug in <code>outbox.put</code>. It logs and carries on producing nothing, forever. The "after" loop handles the one failure it understands, a single session going bad, and lets everything else crash the process. Your process manager (Kubernetes, systemd) restarts it in a known-good state, and the crash shows up in monitoring.</p>
+<p>The "before" loop survives everything, including a CUDA out-of-memory error, corrupted weights or a bug in its own bookkeeping. It logs and retries the same failing batch forever, and every client waits. The "after" loop handles the one failure it understands, a single request going bad, and lets everything else crash the process. Your process manager (Kubernetes, systemd) restarts it in a known-good state, and the crash shows up in monitoring.</p>
 
 <h2>Guidelines</h2>
 <h3>Catch what you can handle, where you can handle it</h3>
 <p>Catch a specific exception type at the level that knows what to do about it. If the only thing you can do is log and re-raise, don't catch at all; the top level will log it.</p>
 
 <h3>One place decides recovery</h3>
-<p>Pick one layer (usually the main loop) that owns the policy: which errors end a session, which restart a worker, which crash the process. Lower layers raise; they don't decide.</p>
+<p>Pick one layer (usually the main loop) that owns the policy: which errors abort a request, which restart a worker, which crash the process. Lower layers raise; they don't decide.</p>
 
 <h3>Validate at boundaries, trust inside</h3>
 <p>Check input once, where it enters: the HTTP handler, the queue consumer, the config loader. Turn it into a typed object there. Code inside the boundary can then assume it's valid instead of re-checking defensively on every call.</p>
 <pre><code class="language-python">@dataclass(frozen=True)
-class Input:
-    session_id: str
-    keys: frozenset[str]
+class Request:
+    id: str
+    prompt: list[int]
+    max_new_tokens: int
 
     @classmethod
-    def parse(cls, raw: dict) -&gt; "Input":
-        keys = raw.get("keys", [])
-        if not isinstance(keys, list) or not all(k in VALID_KEYS for k in keys):
-            raise InvalidInput(f"bad keys: {keys!r}")
-        return cls(session_id=str(raw["session_id"]), keys=frozenset(keys))</code></pre>
+    def parse(cls, raw: dict, tokenizer: Tokenizer) -&gt; "Request":
+        max_new = raw.get("max_new_tokens", 256)
+        if not isinstance(max_new, int) or not 1 &lt;= max_new &lt;= MAX_NEW_TOKENS:
+            raise InvalidRequest(f"max_new_tokens must be 1..{MAX_NEW_TOKENS}, got {max_new!r}")
+        return cls(id=str(raw["id"]), prompt=tokenizer.encode(raw["prompt"]), max_new_tokens=max_new)</code></pre>
 
 <h3>Define a few domain exceptions</h3>
-<p>A small hierarchy (<code>CapacityError</code>, <code>SessionError</code>, <code>InvalidInput</code>) makes "what can go wrong here" explicit and lets callers catch precisely. Don't create one class per call site.</p>
+<p>A small hierarchy (<code>QueueFull</code>, <code>SequenceError</code>, <code>InvalidRequest</code>) makes "what can go wrong here" explicit and lets callers catch precisely. Don't create one class per call site.</p>
 
 <h3>Error messages name the thing and the value</h3>
-<p><code>raise ValueError(f"fps must be positive, got {fps}")</code>, not <code>raise ValueError("invalid config")</code>.</p>
+<p><code>raise ValueError(f"temperature must be >= 0, got {temperature}")</code>, not <code>raise ValueError("invalid sampling params")</code>.</p>
 
 <h3>Never silence with <code>pass</code></h3>
 <p><code>except SomeError: pass</code> needs a comment saying why ignoring it is correct. If you can't write that sentence, don't ignore it.</p>
